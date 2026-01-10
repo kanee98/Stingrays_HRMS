@@ -1,0 +1,17 @@
+version: "3.9"
+
+services:
+  hrms-ui:
+    build: ./hrms-ui
+    ports:
+      - "3000:3000"
+
+  employee-ui:
+    build: ./employee/frontend
+    ports:
+      - "3001:3000"
+
+  employee-api:
+    build: ./employee/backend
+    ports:
+      - "4000:4000"
