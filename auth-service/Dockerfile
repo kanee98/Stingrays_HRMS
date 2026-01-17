@@ -3,6 +3,6 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --legacy-peer-deps
 COPY . .
-RUN npm run build || true
+RUN npm run build
 EXPOSE 4000
-CMD ["npx", "ts-node-dev", "src/index.ts"]
+CMD ["node", "dist/index.js"]
