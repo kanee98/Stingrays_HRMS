@@ -20,6 +20,9 @@ done
 echo "Running initialization script..."
 /opt/mssql-tools18/bin/sqlcmd -S mssql -U sa -P 'Kanishka#9810' -i /scripts/init.sql -C -l 30
 
+echo "Running onboarding schema script..."
+/opt/mssql-tools18/bin/sqlcmd -S mssql -U sa -P 'Kanishka#9810' -i /scripts/onboarding-schema.sql -C -l 30
+
 EXIT_CODE=$?
 if [ $EXIT_CODE -eq 0 ]; then
     echo "=== Initialization complete! ==="

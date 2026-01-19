@@ -15,6 +15,17 @@ services:
     build: ./employee-onboarding/backend
     ports:
       - "4000:4000"
+    environment:
+      DB_HOST: mssql
+      DB_PORT: 1433
+      DB_USER: sa
+      DB_PASSWORD: "Kanishka#9810"
+      DB_NAME: StingraysHRMS
+    depends_on:
+      mssql-init:
+        condition: service_completed_successfully
+      mssql:
+        condition: service_started
 
   mssql:
     image: mcr.microsoft.com/mssql/server:2022-latest

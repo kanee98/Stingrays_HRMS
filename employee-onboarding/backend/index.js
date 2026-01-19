@@ -1,17 +1,27 @@
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
+require("dotenv").config();
+
 const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-app.get("/api/employees", (req, res) => {
-  res.json([
-    { id: 1, name: "John Doe", role: "Engineer" },
-    { id: 2, name: "Jane Smith", role: "HR" }
-  ]);
+// Serve uploaded files
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+// Routes
+const employeesRouter = require("./routes/employees");
+app.use("/api/employees", employeesRouter);
+
+// Health check
+app.get("/health", (req, res) => {
+  res.json({ status: "ok" });
 });
 
-app.listen(4000, () => {
-  console.log("Employee API running on port 4000");
+const PORT = process.env.PORT || 4000;
+app.listen(PORT, () => {
+  console.log(`Employee API running on port ${PORT}`);
 });
