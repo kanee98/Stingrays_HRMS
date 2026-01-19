@@ -1,23 +1,24 @@
 import sql from "mssql";
 
-const config: sql.config = {
-  user: process.env.DB_USER!,
+export const sqlConfig: sql.config = {
+  user: process.env.DB_USER!,           
   password: process.env.DB_PASSWORD!,
-  server: process.env.DB_SERVER!,
   database: process.env.DB_NAME!,
+  server: process.env.DB_HOST!,
+  port: Number(process.env.DB_PORT!),
   options: {
-    encrypt: true,
-    trustServerCertificate: true,
+    encrypt: false,                    
+    trustServerCertificate: true,       
   },
 };
 
-export const poolPromise = new sql.ConnectionPool(config)
+export const poolPromise = new sql.ConnectionPool(sqlConfig)
   .connect()
   .then((pool) => {
     console.log("Connected to MSSQL");
     return pool;
   })
   .catch((err) => {
-    console.log("Database Connection Failed! Bad Config: ", err);
+    console.error("Database Connection Failed! Bad Config: ", err);
     throw err;
-});
+  });

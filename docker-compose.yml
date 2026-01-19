@@ -14,9 +14,33 @@ services:
     ports:
       - "4000:4000"
 
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: stingrays-mssql
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "Kanishka#9810"
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql_data:/var/opt/mssql     
+      - ./init-sql:/docker-entrypoint-initdb.d  
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P 'Kanishka#9810' -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 120s
+
   auth-service:
     build: ./auth-service
     ports:
       - "4001:4000"
     env_file:
       - ./auth-service/.env
+    depends_on:
+      mssql:
+        condition: service_healthy
+
+volumes:
+  mssql_data:  
