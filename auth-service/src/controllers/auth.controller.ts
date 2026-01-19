@@ -6,7 +6,7 @@ import { signToken } from "../utils/jwt";
 export const login = async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
-    try {
+  try {
     const pool = await poolPromise;
 
     const result = await pool
@@ -44,8 +44,7 @@ export const login = async (req: Request, res: Response) => {
             role: user.Role,
         },
     });
-  }
-    catch (err) {
+  } catch (err) {
     console.error("Login error:", err);
     res.status(500).json({ message: "Internal server error" });
   }

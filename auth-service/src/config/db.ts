@@ -22,3 +22,13 @@ export const poolPromise = new sql.ConnectionPool(sqlConfig)
     console.error("Database Connection Failed! Bad Config: ", err);
     throw err;
   });
+
+// Helper function to ensure database is connected
+export const ensureDbConnection = async () => {
+  try {
+    await poolPromise;
+  } catch (err) {
+    console.error("Failed to establish database connection:", err);
+    throw err;
+  }
+};
