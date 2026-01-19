@@ -3,6 +3,8 @@ services:
     build: ./hrms-ui
     ports:
       - "3000:3000"
+    environment:
+      NEXT_PUBLIC_AUTH_SERVICE_URL: "http://localhost:4001"
 
   employee-ui:
     build: ./employee-onboarding/frontend
