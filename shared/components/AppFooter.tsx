@@ -11,7 +11,7 @@ export function AppFooter() {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <p className="text-center text-sm text-gray-600">
-          © {year} Stingrays Global Intellectual Property. All rights reserved.
+          © {year} Stingrays Global Intellectual Property. All rights reserved
           {' · '}
           Designed and built by{' '}
           <a

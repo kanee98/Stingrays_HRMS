@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "./contexts/AuthContext";
-import { AppFooter } from "@shared/components/AppFooter";
+import { ConditionalFooter } from "./components/ConditionalFooter";
 
 export const metadata: Metadata = {
   title: "HRMS Dashboard",
@@ -21,7 +21,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <AuthProvider>
           <div className="min-h-screen flex flex-col flex-1">
             <div className="flex-1">{children}</div>
-            <AppFooter />
+            <ConditionalFooter />
           </div>
         </AuthProvider>
       </body>

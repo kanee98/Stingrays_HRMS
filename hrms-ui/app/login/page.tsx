@@ -91,7 +91,15 @@ function LoginForm() {
           </p>
         </div>
         <p className="text-slate-500 text-xs">
-          © Stingrays Global Intellectual Property. All rights reserved.
+          © Stingrays Global Intellectual Property. All rights reserved.Designed and built by{' '}
+          <a
+            href="https://fusionlabz.lk"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-indigo-600 hover:text-indigo-800 font-medium transition"
+          >
+            FusionLabz.lk
+          </a>
         </p>
       </div>
 
