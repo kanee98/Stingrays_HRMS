@@ -1,23 +1,49 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
 
-export default function LoginPage() {
+function LoginSpinner() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+      <div className="text-center">
+        <svg
+          className="animate-spin h-12 w-12 text-indigo-600 mx-auto"
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+        >
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login, user, isLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const returnUrl = searchParams.get('returnUrl');
 
   // Redirect if already logged in
   useEffect(() => {
     if (!isLoading && user) {
-      router.push('/');
+      if (returnUrl) {
+        // Redirect back to the app that requested login, with token in hash (single sign-on)
+        const hash = `#token=${encodeURIComponent(localStorage.getItem('auth_token') || '')}&user=${encodeURIComponent(localStorage.getItem('auth_user') || '')}`;
+        window.location.href = returnUrl + hash;
+      } else {
+        router.push('/');
+      }
     }
-  }, [user, isLoading, router]);
+  }, [user, isLoading, router, returnUrl]);
 
   if (isLoading) {
     return (
@@ -55,9 +81,17 @@ export default function LoginPage() {
 
     try {
       await login(email, password);
-      router.push('/');
-    } catch (err: any) {
-      setError(err.message || 'Login failed. Please try again.');
+      if (returnUrl) {
+        // Redirect to the app that requested login (e.g. employee UI) with token in hash
+        const token = localStorage.getItem('auth_token');
+        const userJson = localStorage.getItem('auth_user');
+        const hash = `#token=${encodeURIComponent(token || '')}&user=${encodeURIComponent(userJson || '')}`;
+        window.location.href = returnUrl + hash;
+      } else {
+        router.push('/');
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -168,5 +202,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginSpinner />}>
+      <LoginForm />
+    </Suspense>
   );
 }

@@ -10,7 +10,7 @@ interface User {
 interface AuthContextType {
   user: User | null;
   token: string | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<{ token: string; user: User }>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -61,6 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem('auth_user', JSON.stringify(data.user));
     // Set cookie for middleware (8 hours expiry)
     document.cookie = `auth_token=${data.token}; path=/; max-age=28800`;
+    return { token: data.token, user: data.user };
   };
 
   const logout = () => {

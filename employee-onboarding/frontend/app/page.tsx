@@ -1,5 +1,12 @@
+'use client';
+
+import { ProtectedRoute } from './components/ProtectedRoute';
 import { OnboardingForm } from './components/OnboardingForm';
 
 export default function EmployeePage() {
-  return <OnboardingForm />;
+  return (
+    <ProtectedRoute>
+      <OnboardingForm />
+    </ProtectedRoute>
+  );
 }

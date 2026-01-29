@@ -5,11 +5,14 @@ services:
       - "3000:3000"
     environment:
       NEXT_PUBLIC_AUTH_SERVICE_URL: "http://localhost:4001"
+      NEXT_PUBLIC_EMPLOYEE_UI_URL: "http://localhost:3001"
 
   employee-ui:
     build: ./employee-onboarding/frontend
     ports:
       - "3001:3000"
+    environment:
+      NEXT_PUBLIC_HRMS_URL: "http://localhost:3000"
 
   employee-api:
     build: ./employee-onboarding/backend

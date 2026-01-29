@@ -2,15 +2,16 @@
 
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { useAuth } from './contexts/AuthContext';
-import { useRouter } from 'next/navigation';
+
+const EMPLOYEE_UI_URL = process.env.NEXT_PUBLIC_EMPLOYEE_UI_URL || 'http://localhost:3001';
 
 function Dashboard() {
   const { user, logout } = useAuth();
-  const router = useRouter();
 
   const handleLogout = () => {
     logout();
-    router.push('/login');
+    // Sync logout to employee UI (3001) so it clears its session, then user is redirected to login
+    window.location.href = `${EMPLOYEE_UI_URL}?logout=1`;
   };
 
   return (
