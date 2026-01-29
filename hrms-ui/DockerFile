@@ -1,8 +1,10 @@
 FROM node:20-alpine
-WORKDIR /app
-COPY package*.json ./
+WORKDIR /workspace
+COPY hrms-ui/package*.json hrms-ui/
+WORKDIR hrms-ui
 RUN npm ci --legacy-peer-deps
-COPY . .
+COPY hrms-ui .
+COPY shared ./shared/
 RUN npm run build
 EXPOSE 3000
 CMD ["npm", "start"]

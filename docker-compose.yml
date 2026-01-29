@@ -1,6 +1,8 @@
 services:
   hrms-ui:
-    build: ./hrms-ui
+    build:
+      context: .
+      dockerfile: hrms-ui/Dockerfile
     ports:
       - "3000:3000"
     environment:
@@ -8,7 +10,9 @@ services:
       NEXT_PUBLIC_EMPLOYEE_UI_URL: "http://localhost:3001"
 
   employee-ui:
-    build: ./employee-onboarding/frontend
+    build:
+      context: .
+      dockerfile: employee-onboarding/frontend/Dockerfile
     ports:
       - "3001:3000"
     environment:

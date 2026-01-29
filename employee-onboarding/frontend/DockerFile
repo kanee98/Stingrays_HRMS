@@ -1,8 +1,10 @@
 FROM node:20-alpine
-WORKDIR /app
-COPY package*.json ./
+WORKDIR /workspace
+COPY employee-onboarding/frontend/package*.json employee-onboarding/frontend/
+WORKDIR employee-onboarding/frontend
 RUN npm ci --legacy-peer-deps
-COPY . .
+COPY employee-onboarding/frontend .
+COPY shared ./shared/
 RUN npm run build
 EXPOSE 3000
 CMD ["npm", "start"]

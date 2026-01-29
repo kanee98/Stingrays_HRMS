@@ -13,6 +13,9 @@
 # testing
 /coverage
 
+# copied shared (source of truth: repo root shared/)
+/shared
+
 # next.js
 /.next/
 /out/
