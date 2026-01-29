@@ -1,22 +1,20 @@
 'use client';
 
 import { ProtectedRoute } from './components/ProtectedRoute';
-import { AppNavbar } from './components/AppNavbar';
+import { DashboardLayout } from './components/DashboardLayout';
 import { useAuth } from './contexts/AuthContext';
+
+const EMPLOYEE_UI_URL = process.env.NEXT_PUBLIC_EMPLOYEE_UI_URL || 'http://localhost:3001';
 
 function Dashboard() {
   const { user } = useAuth();
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <AppNavbar />
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900">Dashboard</h2>
-          <p className="mt-2 text-gray-600">Welcome back, {user?.email}</p>
-        </div>
+    <div className="p-6 lg:p-8">
+      <div className="mb-8">
+        <h2 className="text-3xl font-bold text-gray-900">Dashboard</h2>
+        <p className="mt-2 text-gray-600">Welcome back, {user?.email}</p>
+      </div>
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -98,7 +96,7 @@ function Dashboard() {
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <a
-              href={process.env.NEXT_PUBLIC_EMPLOYEE_UI_URL || 'http://localhost:3001'}
+              href={EMPLOYEE_UI_URL}
               className="flex items-center p-4 border border-gray-200 rounded-lg hover:border-indigo-600 hover:bg-indigo-50 transition"
             >
               <svg
@@ -117,7 +115,7 @@ function Dashboard() {
               <span className="text-gray-700 font-medium">Add New Employee</span>
             </a>
             <a
-              href="#"
+              href="/reports"
               className="flex items-center p-4 border border-gray-200 rounded-lg hover:border-indigo-600 hover:bg-indigo-50 transition"
             >
               <svg
@@ -137,7 +135,6 @@ function Dashboard() {
             </a>
           </div>
         </div>
-      </main>
     </div>
   );
 }
@@ -145,7 +142,9 @@ function Dashboard() {
 export default function Home() {
   return (
     <ProtectedRoute>
-      <Dashboard />
+      <DashboardLayout>
+        <Dashboard />
+      </DashboardLayout>
     </ProtectedRoute>
   );
 }
