@@ -1,67 +1,15 @@
 'use client';
 
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { AppNavbar } from './components/AppNavbar';
 import { useAuth } from './contexts/AuthContext';
 
-const EMPLOYEE_UI_URL = process.env.NEXT_PUBLIC_EMPLOYEE_UI_URL || 'http://localhost:3001';
-
 function Dashboard() {
-  const { user, logout } = useAuth();
-
-  const handleLogout = () => {
-    logout();
-    // Sync logout to employee UI (3001) so it clears its session, then user is redirected to login
-    window.location.href = `${EMPLOYEE_UI_URL}?logout=1`;
-  };
+  const { user } = useAuth();
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <h1 className="text-2xl font-bold text-indigo-600">HRMS</h1>
-              </div>
-              <nav className="ml-10 flex space-x-8">
-                <a
-                  href="#"
-                  className="text-gray-900 hover:text-indigo-600 px-3 py-2 text-sm font-medium border-b-2 border-indigo-600"
-                >
-                  Dashboard
-                </a>
-                <a
-                  href="http://localhost:3001"
-                  className="text-gray-500 hover:text-indigo-600 px-3 py-2 text-sm font-medium"
-                >
-                  Employees
-                </a>
-                <a
-                  href="#"
-                  className="text-gray-500 hover:text-indigo-600 px-3 py-2 text-sm font-medium"
-                >
-                  Payroll
-                </a>
-              </nav>
-            </div>
-            <div className="flex items-center space-x-4">
-              <div className="text-sm text-gray-700">
-                <span className="font-medium">{user?.email}</span>
-                <span className="ml-2 px-2 py-1 bg-indigo-100 text-indigo-800 text-xs rounded-full">
-                  {user?.role}
-                </span>
-              </div>
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-indigo-600 border border-gray-300 rounded-lg hover:border-indigo-600 transition"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
+      <AppNavbar />
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -150,7 +98,7 @@ function Dashboard() {
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <a
-              href="http://localhost:3001"
+              href={process.env.NEXT_PUBLIC_EMPLOYEE_UI_URL || 'http://localhost:3001'}
               className="flex items-center p-4 border border-gray-200 rounded-lg hover:border-indigo-600 hover:bg-indigo-50 transition"
             >
               <svg
