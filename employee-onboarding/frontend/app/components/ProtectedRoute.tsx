@@ -10,7 +10,6 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!isLoading && !user) {
-      // Single sign-on: redirect to main HRMS login with returnUrl so we get sent back with token
       const returnUrl = encodeURIComponent(
         typeof window !== 'undefined' ? window.location.origin : ''
       );
