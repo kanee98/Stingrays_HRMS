@@ -1,0 +1,45 @@
+# Database stack - run separately so it is not rebuilt with `docker compose build`.
+# Start once: docker compose -f docker-compose.db.yml up -d
+# Then build/run app: docker compose build && docker compose up
+
+services:
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: stingrays-mssql
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "Kanishka#9810"
+    ports:
+      - "1433:1433"
+    volumes:
+      - mssql_data:/var/opt/mssql
+    networks:
+      - hrms-db
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Kanishka#9810' -C -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 120s
+
+  mssql-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: stingrays-mssql-init
+    environment:
+      SA_PASSWORD: "Kanishka#9810"
+    volumes:
+      - ./init-sql:/scripts
+    networks:
+      - hrms-db
+    depends_on:
+      mssql:
+        condition: service_healthy
+    command: /bin/bash /scripts/init-db.sh
+    user: root
+
+volumes:
+  mssql_data:
+
+networks:
+  hrms-db:
+    name: stingrays-hrms-db
