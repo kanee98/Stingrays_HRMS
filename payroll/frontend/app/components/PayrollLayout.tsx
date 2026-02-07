@@ -14,7 +14,18 @@ const PAYROLL_URL = process.env.NEXT_PUBLIC_PAYROLL_URL || 'http://localhost:301
  * SSO: requires auth; redirects to HRMS login when not authenticated.
  */
 export function PayrollLayout({ children }: { children: React.ReactNode }) {
-  const { user, logout, isLoading } = useAuth();
+  const { user, isLoading } = useAuth();
+
+  const onLogout = () => {
+    try {
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('auth_user');
+      document.cookie = 'auth_token=; path=/; max-age=0';
+      window.location.href = `${HRMS_URL}?logout=1`;
+    } catch {
+      window.location.href = `${HRMS_URL}?logout=1`;
+    }
+  };
 
   useEffect(() => {
     if (isLoading) return;
@@ -51,7 +62,7 @@ export function PayrollLayout({ children }: { children: React.ReactNode }) {
       sidebarItems={payrollSidebarItems}
       variant="payroll"
       user={{ email: user.email, role: user.role }}
-      onLogout={logout}
+      onLogout={onLogout}
     >
       {children}
     </AppLayout>

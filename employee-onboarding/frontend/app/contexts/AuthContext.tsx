@@ -18,6 +18,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const HRMS_URL = process.env.NEXT_PUBLIC_HRMS_URL || 'http://localhost:3000';
+const PAYROLL_URL = process.env.NEXT_PUBLIC_PAYROLL_URL || 'http://localhost:3010';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -37,7 +38,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem('auth_user');
         document.cookie = 'auth_token=; path=/; max-age=0';
         window.history.replaceState(null, '', window.location.pathname);
-        window.location.href = `${HRMS_URL}/login`;
+        // Logout chain: Employee → Payroll → HRMS login
+        window.location.href = `${PAYROLL_URL}?logout=1`;
         return;
       }
 
