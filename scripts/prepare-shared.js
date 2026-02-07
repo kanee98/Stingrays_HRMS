@@ -12,6 +12,7 @@ const sharedSrc = path.join(repoRoot, 'shared');
 const targets = [
   path.join(repoRoot, 'hrms-ui', 'shared'),
   path.join(repoRoot, 'employee-onboarding', 'frontend', 'shared'),
+  path.join(repoRoot, 'payroll', 'frontend', 'shared'),
 ];
 
 if (!fs.existsSync(sharedSrc)) {

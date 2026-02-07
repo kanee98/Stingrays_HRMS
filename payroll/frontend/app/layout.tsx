@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "./contexts/AuthContext";
+import { PayrollLayout } from "./components/PayrollLayout";
 
 export const metadata: Metadata = {
-  title: "HRMS Dashboard",
-  description: "Human Resource Management System",
+  title: "Payroll",
+  description: "Payroll microservice",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -19,10 +20,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       >
         <AuthProvider>
           <div className="min-h-screen flex flex-col flex-1">
-            {children}
+            <PayrollLayout>{children}</PayrollLayout>
           </div>
         </AuthProvider>
       </body>
     </html>
-  )
+  );
 }

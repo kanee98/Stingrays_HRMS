@@ -9,6 +9,36 @@ services:
       NEXT_PUBLIC_AUTH_SERVICE_URL: "http://localhost:4001"
       NEXT_PUBLIC_EMPLOYEE_UI_URL: "http://localhost:3001"
       NEXT_PUBLIC_EMPLOYEE_API_URL: "http://localhost:4000"
+      NEXT_PUBLIC_PAYROLL_URL: "http://localhost:3010"
+
+  payroll-ui:
+    build:
+      context: .
+      dockerfile: payroll/frontend/Dockerfile
+    ports:
+      - "3010:3010"
+    environment:
+      NEXT_PUBLIC_PAYROLL_API_URL: "http://localhost:4010"
+      NEXT_PUBLIC_HRMS_URL: "http://localhost:3000"
+      NEXT_PUBLIC_EMPLOYEE_UI_URL: "http://localhost:3001"
+      NEXT_PUBLIC_PAYROLL_URL: "http://localhost:3010"
+
+  payroll-api:
+    build: ./payroll/backend
+    ports:
+      - "4010:4010"
+    environment:
+      DB_HOST: mssql
+      DB_PORT: 1433
+      DB_USER: sa
+      DB_PASSWORD: "Kanishka#9810"
+      DB_NAME: StingraysHRMS
+      PORT: 4010
+    depends_on:
+      mssql-init:
+        condition: service_completed_successfully
+      mssql:
+        condition: service_started
 
   employee-ui:
     build:

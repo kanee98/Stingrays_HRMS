@@ -13,8 +13,7 @@
 # testing
 /coverage
 
-# copied shared (source of truth: repo root shared/)
-/shared
+# shared is in hrms-ui/shared (source of truth for all microservices)
 
 # next.js
 /.next/
