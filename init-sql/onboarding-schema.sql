@@ -56,6 +56,13 @@ BEGIN
 END
 GO
 
+-- Status: 1 = active, 0 = soft-deleted. Use for listing/editing; future RBAC will use Roles/UserRoles for permission checks.
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('Employees') AND name = 'IsActive')
+BEGIN
+    ALTER TABLE Employees ADD IsActive BIT NOT NULL DEFAULT 1;
+END
+GO
+
 -- Create OnboardingDocuments table
 IF OBJECT_ID('OnboardingDocuments', 'U') IS NULL
 BEGIN

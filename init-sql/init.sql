@@ -1,3 +1,4 @@
+-- StingraysHRMS: Roles/UserRoles define app access (admin, hr, employee). Use for future RBAC on API routes.
 -- Create database if it doesn't exist
 IF NOT EXISTS(SELECT * FROM sys.databases WHERE name = 'StingraysHRMS')
 BEGIN

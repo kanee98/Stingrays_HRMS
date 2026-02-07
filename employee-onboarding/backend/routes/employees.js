@@ -14,6 +14,7 @@ router.get('/', async (req, res) => {
         (SELECT COUNT(*) FROM OnboardingChecklist WHERE EmployeeId = e.Id AND IsCompleted = 1) as CompletedItems,
         (SELECT COUNT(*) FROM OnboardingChecklist WHERE EmployeeId = e.Id) as TotalItems
       FROM Employees e
+      WHERE (e.IsActive = 1)
       ORDER BY e.CreatedAt DESC
     `);
     res.json(result.recordset);
@@ -37,7 +38,7 @@ router.get('/:id', async (req, res) => {
         FROM Employees e
         LEFT JOIN GramasevakaDetails gd ON e.Id = gd.EmployeeId
         LEFT JOIN PoliceReportDetails prd ON e.Id = prd.EmployeeId
-        WHERE e.Id = @id
+        WHERE e.Id = @id AND e.IsActive = 1
       `);
 
     if (result.recordset.length === 0) {
@@ -107,12 +108,12 @@ router.post('/', async (req, res) => {
       .query(`
         INSERT INTO Employees (
           FirstName, LastName, Email, DOB, NIC, Phone, Address, City, PostalCode,
-          Position, Department, EmergencyContactName, EmergencyContactPhone, OnboardingStatus
+          Position, Department, EmergencyContactName, EmergencyContactPhone, OnboardingStatus, IsActive
         )
         OUTPUT INSERTED.Id
         VALUES (
           @firstName, @lastName, @email, @dob, @nic, @phone, @address, @city, @postalCode,
-          @position, @department, @emergencyContactName, @emergencyContactPhone, 'pending'
+          @position, @department, @emergencyContactName, @emergencyContactPhone, 'pending', 1
         )
       `);
 
@@ -170,7 +171,7 @@ router.put('/:id', async (req, res) => {
       emergencyContactPhone,
     } = req.body;
 
-    await pool
+    const result = await pool
       .request()
       .input('id', sql.Int, req.params.id)
       .input('firstName', sql.NVarChar, firstName)
@@ -201,13 +202,44 @@ router.put('/:id', async (req, res) => {
           Department = @department,
           EmergencyContactName = @emergencyContactName,
           EmergencyContactPhone = @emergencyContactPhone
-        WHERE Id = @id
+        WHERE Id = @id AND IsActive = 1;
+        SELECT @@ROWCOUNT as updated
       `);
 
+    if (result.recordset[0].updated === 0) {
+      return res.status(404).json({ error: 'Employee not found' });
+    }
     res.json({ message: 'Employee updated successfully' });
   } catch (error) {
     console.error('Error updating employee:', error);
     res.status(500).json({ error: 'Failed to update employee' });
+  }
+});
+
+// Soft delete: set IsActive = 0 (future: restrict by role e.g. admin/hr only)
+router.delete('/:id', async (req, res) => {
+  try {
+    const pool = await getPool();
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid employee id' });
+    }
+    const result = await pool
+      .request()
+      .input('id', sql.Int, id)
+      .query(`
+        UPDATE Employees
+        SET IsActive = 0
+        WHERE Id = @id AND IsActive = 1;
+        SELECT @@ROWCOUNT as updated
+      `);
+    if (result.recordset[0].updated === 0) {
+      return res.status(404).json({ error: 'Employee not found' });
+    }
+    res.json({ message: 'Employee deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting employee:', error);
+    res.status(500).json({ error: 'Failed to delete employee' });
   }
 });
 
