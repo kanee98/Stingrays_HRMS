@@ -15,15 +15,46 @@ This plan covers implementing the remaining HRMS features as **microservices** (
 
 ---
 
+## Shared UI and Shared Session (Mandatory for All Microservices)
+
+**Single source UI from repo-root `shared/`:** All microservices **must** use **one shared UI** from the **repo-root** **`shared/`** folder: topbar (microservice switcher) and sidebar (microservice-specific nav) from the same root folder. Do **not** create or copy a `shared/` folder inside any microservice (e.g. no `payroll/frontend/shared/`, no `hrms-ui/shared/`, no `employee-onboarding/frontend/shared/`). Use the same shared components from the root folder everywhere.
+- **Topbar (microservice switcher):** Use **`shared/components/AppNavbar.tsx`** in every frontend. The topbar shows **only** links to **switch between microservices** (Dashboard, Employee Onboarding, Payroll, Leave, etc.). Add a `variant` per app so the active microservice is highlighted.
+- **Sidebar (microservice-specific nav):** Use **`shared/components/AppSidebar.tsx`** in every frontend. It is a **single shared component** that accepts an `items` prop (array of `{ href, label, icon }`). Each app passes its **own** nav links (e.g. HRMS: Users, Payroll…; Payroll: Pay runs, Config, Reports…; Employee: Prospects, Onboarding…). Same look everywhere; only the links differ.
+- **Other shared components:** Use any other shared components (e.g. `AppFooter`, future layout or auth components) from the repo-root **`shared/`** so behaviour and look stay consistent.
+- **Setup:** Add the new frontend to **`scripts/prepare-shared.js`** so the root `shared/` is copied into that app. In the Dockerfile (build **context: repo root**), **`COPY shared ./shared/`**. Use **`@shared/*`** in tsconfig (e.g. `"./shared/*"` where shared is the copied root folder).
+
+**Shared session (single sign-on):** Session **must** be shared across all microservices. A user who logs in once (e.g. in hrms-ui or a central login) must remain logged in when switching to any other microservice (Employee Onboarding, Payroll, Leave, etc.).
+- **Auth source of truth:** auth-service issues the JWT; all microservice UIs and APIs use the same token for identity.
+- **Implementation:** All frontends must use the same auth mechanism: read and send the same token (e.g. `auth_token` in cookie or localStorage, or `Authorization` header). When apps run on different origins (e.g. different ports), use one of: **(a)** shared cookie domain in production so one cookie works across subdomains; **(b)** central login that redirects to each app with token (e.g. in URL hash or query) so each app can persist it; **(c)** reverse proxy so all UIs are served under one origin and one cookie works. Each new microservice must integrate with this shared session (e.g. use a shared AuthContext pattern, same token key, and pass token to its API).
+- **Navbar user/logout:** The shared `AppNavbar` accepts optional `user` and `onLogout`; each microservice should pass the current user and logout handler from its auth context so the topbar shows the same user and logout everywhere.
+
+---
+
 ## UI / Navigation Rules (Apply to All Phases)
 
-- **All five microservices** (Payroll, Leave, Attendance, Performance, Reports) must appear on the **top navbar** of the HRMS UI (localhost:3000), **not** in the sidebar.
+- **Topbar – microservice switcher only:** The **top bar** must show **only** links to **switch between microservices** (Dashboard / HRMS, Employee Onboarding, Payroll, Leave, etc.). Use **`shared/components/AppNavbar.tsx`** in every frontend; add a `variant` per app so the active microservice is highlighted.
+- **Sidebar – shared component, microservice-specific links:** Use **`shared/components/AppSidebar.tsx`** with an `items` prop. Each app defines its **own** sidebar items (e.g. in `app/config/sidebarItems.ts`) and passes them to the shared `AppSidebar`. Same single component everywhere; only the nav links differ per microservice.
 - **Implementation approach:** Each microservice has its **own backend API** and **own frontend app** (or static UI) on a **dedicated port**. The navbar will link to each app by URL (e.g. `http://localhost:3XXX`).  
   - **Ask user:** Prefer **external links** (open in same tab or new tab) or **embedded iframe** inside hrms-ui for each microservice? Default assumption: **external links** (same tab) unless you specify.
 - **Where to change navbar:** `shared/components/AppNavbar.tsx` – add one nav item per microservice, with `href` pointing to the microservice base URL (from env or constant).  
   - **hrms-ui** must pass or use env vars for each microservice URL (e.g. `NEXT_PUBLIC_PAYROLL_URL`, `NEXT_PUBLIC_LEAVE_URL`, …) so the shared navbar can link correctly.  
   - **docker-compose:** Add one service per microservice (frontend + backend if applicable) and expose the chosen port; add corresponding env vars to hrms-ui.
-- **Sidebar** (hrms-ui `AppSidebar.tsx`): Stays as-is for Dashboard, Users, Payroll, Leave, Attendance, Recruitment, Performance, Reports, Settings. Sidebar can keep **internal routes** (e.g. `/payroll`) that either redirect to the microservice URL or show an embedded view—**ask user** which behaviour they want for sidebar items that match a microservice (e.g. “Payroll” in sidebar: go to Payroll app vs stay on hrms-ui).
+- **Sidebar:** Each app uses **shared** `AppSidebar` with its own `items` (e.g. hrms-ui: Dashboard, Users, Payroll, Leave…; payroll: Pay runs, Config, Reports). Sidebar items can be internal routes or links to other microservice URLs (e.g. “Payroll” in sidebar: go to Payroll app vs stay on hrms-ui).
+
+---
+
+## Microservice Folder Structure and Docker (Mandatory for All Phases)
+
+**Folder structure:** Each microservice **must** follow the **employee-onboarding** pattern:
+
+- **Main folder:** One folder at repo root named after the microservice (e.g. `payroll`, `leave`, `attendance`, `performance`, `reports`).
+- **Under it:** Exactly two subfolders:
+  - **`backend/`** – API (Express, config, routes, controllers, etc.). Same structure as `employee-onboarding/backend/` (e.g. `config/`, `routes/`, `index.js` or `src/index.ts`, `Dockerfile`, `package.json`).
+  - **`frontend/`** – Next.js app (e.g. `app/`, `components/`, `layout.tsx`, `Dockerfile`, `package.json`). **Must use shared UI and shared session:** use **`shared/components/AppNavbar`** (topbar) and **`shared/components/AppSidebar`** (sidebar with microservice-specific `items`); add app to `prepare-shared.js`; Dockerfile **COPY shared ./shared/**; integrate with the same auth token/session as other microservices.
+
+**Do not** create separate top-level folders like `(name)-service` and `(name)-ui`. Use **`(microservice-name)/backend`** and **`(microservice-name)/frontend`** only.
+
+**Single docker-compose:** The **main** `docker-compose.yml` at repo root must be the only file needed to run the full application. One command (`docker-compose up --build` or `docker-compose up`) must start all services (hrms-ui, auth-service, mssql, mssql-init, employee-ui, employee-api, payroll-ui, payroll-api, and any future microservices) without requiring multiple `docker-compose` invocations or other manual commands. All microservice **frontends** must use build **context: .** (repo root) and **dockerfile: (microservice-name)/frontend/Dockerfile**. All microservice **backends** must use **build: ./(microservice-name)/backend**. Frontend Dockerfiles that need repo-root context must use `COPY (microservice-name)/frontend/ ...` paths. **Dependency install:** Use `RUN npm install --legacy-peer-deps` (not `npm ci`) in all Dockerfiles so that dependencies are installed during `docker-compose build` without requiring `package-lock.json` or a prior `npm install` on the host.
 
 ---
 
@@ -51,7 +82,7 @@ This plan covers implementing the remaining HRMS features as **microservices** (
 - **Backend:** Node.js + Express (same as auth-service and employee-api). TypeScript optional but recommended for new services.
 - **Database:** Same MSSQL instance (StingraysHRMS); each microservice gets its own set of tables (e.g. `Payroll.*`, `Leave.*`, `Attendance.*`, `Performance.*`, `Reports` or aggregated read-only views).
 - **Frontend:** Next.js (same as hrms-ui and employee-ui) for each microservice UI, so structure and patterns stay consistent.
-- **Auth:** **Ask user:** Should each microservice validate the JWT from auth-service (same as current login), or is SSO/cookie-based auth planned? For now the plan assumes **JWT in header or cookie** validated by auth-service; microservices can call auth-service to verify token or use a shared JWT secret.
+- **Auth:** auth-service is the source of truth for login and JWT. Each microservice API validates the same JWT (header or cookie). **Session is shared** across all microservice UIs (see **Shared UI and Shared Session** above)—one login must work everywhere.
 
 ---
 
@@ -110,10 +141,10 @@ This plan covers implementing the remaining HRMS features as **microservices** (
 
 1. **Ports:** Payroll UI 3010, Payroll API 4010 (confirm with user).
 2. **Database:** New tables under StingraysHRMS (e.g. `PayrollRuns`, `Payslips`, `PayrollConfig`—exact names after user answers).
-3. **Payroll API (new repo folder, e.g. `payroll-service/`):** Express app; CRUD or domain endpoints for pay runs, payslips, and any config; use same DB connection pattern as auth-service/employee-api.
-4. **Payroll UI (new repo folder, e.g. `payroll-ui/`):** Next.js app; list pay runs, create/edit run, view payslips; optional report view.
+3. **Payroll API:** In `payroll/backend/` (Express app; CRUD or domain endpoints for pay runs, payslips, and any config; use same DB connection pattern as auth-service/employee-api).
+4. **Payroll UI:** In `payroll/frontend/` (Next.js app; list pay runs, create/edit run, view payslips; optional report view).
 5. **Navbar:** In `shared/components/AppNavbar.tsx`, add “Payroll” link pointing to `NEXT_PUBLIC_PAYROLL_URL` (e.g. `http://localhost:3010`). Add env in hrms-ui and docker-compose for `NEXT_PUBLIC_PAYROLL_URL`.
-6. **Docker:** Add `payroll-ui` and `payroll-api` (or `payroll-service`) to docker-compose with correct ports and DB env.
+6. **Docker:** Add `payroll-ui` (build from `payroll/frontend`) and `payroll-api` (build from `payroll/backend`) to the main docker-compose with correct ports and DB env.
 
 **Deliverable:** Payroll microservice runnable on its ports; Payroll link on top navbar opens Payroll app. Details (screens, fields, calculations) depend on user answers.
 
@@ -228,25 +259,29 @@ Stingrays_HRMS/
 ├── employee-onboarding/     # existing + Prospects (Phase 0)
 │   ├── frontend/
 │   └── backend/
-├── payroll-service/        # Phase 1 (or payroll-api + payroll-ui)
-├── leave-service/          # Phase 2
-├── attendance-service/     # Phase 3
-├── performance-service/    # Phase 4
-├── reports-service/        # Phase 5
+├── payroll/                # Phase 1 (microservice folder structure)
+│   ├── frontend/
+│   └── backend/
+├── leave/                  # Phase 2 (same structure: frontend/ + backend/)
+├── attendance/              # Phase 3
+├── performance/            # Phase 4
+├── reports/                # Phase 5
 ├── shared/                 # existing; AppNavbar updated
 ├── init-sql/               # existing + new migrations per service
-└── docker-compose.yml      # all services + env vars
+└── docker-compose.yml      # single file; one command runs full app
 ```
 
 ---
 
 ## Summary Checklist for Agent
 
+- [ ] **Shared UI:** Every microservice uses **one shared UI** from repo-root **`shared/`**: **AppNavbar** (topbar = microservice switcher) and **AppSidebar** (sidebar with app-specific `items`); add to `prepare-shared.js`; Dockerfile COPY shared; use `@shared/*` in tsconfig.
+- [ ] **Shared session:** All microservices use the same auth token and session; one login works across hrms-ui, employee-ui, payroll-ui, and future UIs (see **Shared UI and Shared Session**).
 - [ ] **Phase 0 – Prospects:** Get CSV columns + types + eligibility rules from user → DB + API + UI in Employee Onboarding.
 - [ ] **Phase 1 – Payroll:** Get scope, rules, ports from user → new service + navbar link.
 - [ ] **Phase 2 – Leave:** Get leave types, policies, ports from user → new service + navbar link.
 - [ ] **Phase 3 – Attendance:** Get capture method, rules, ports from user → new service + navbar link.
 - [ ] **Phase 4 – Performance:** Get evaluation model, cycle, process from user → new service + navbar link.
 - [ ] **Phase 5 – Reports:** Get report types, format, filters from user → new service + navbar link.
-- [ ] **Navbar:** All five microservices visible in **top navbar** (shared AppNavbar), each linking to its own port; sidebar unchanged for internal HRMS pages.
+- [ ] **Navbar:** All microservices visible in **top navbar** (shared AppNavbar), each linking to its own port; sidebar unchanged for internal HRMS pages.
 - [ ] **No assumptions:** At each phase, ask the user for the listed inputs before coding.

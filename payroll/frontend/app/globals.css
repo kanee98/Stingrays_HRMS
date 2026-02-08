@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+/* Include shared components so their Tailwind classes are generated (topbar, sidebar, footer) */
+@source "../shared/**/*.tsx";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
+}

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "./contexts/AuthContext";
-import { AppFooter } from "@shared/components/AppFooter";
 
 export const metadata: Metadata = {
   title: "Employee Onboarding",
@@ -20,8 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       >
         <AuthProvider>
           <div className="min-h-screen flex flex-col flex-1">
-            <div className="flex-1">{children}</div>
-            <AppFooter />
+            {children}
           </div>
         </AuthProvider>
       </body>

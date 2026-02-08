@@ -2,9 +2,9 @@ FROM node:20-alpine
 WORKDIR /workspace
 COPY employee-onboarding/frontend/package*.json employee-onboarding/frontend/
 WORKDIR employee-onboarding/frontend
-RUN npm ci --legacy-peer-deps
+RUN npm install --legacy-peer-deps
 COPY employee-onboarding/frontend .
-COPY shared ./shared/
+COPY hrms-ui/shared ./shared/
 RUN npm run build
 EXPOSE 3000
 CMD ["npm", "start"]

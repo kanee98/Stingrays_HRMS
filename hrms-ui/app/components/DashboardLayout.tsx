@@ -1,18 +1,28 @@
 'use client';
 
-import { AppNavbar } from './AppNavbar';
-import { AppSidebar } from './AppSidebar';
+import { AppLayout } from '@shared/components/AppLayout';
+import { useAuth } from '../contexts/AuthContext';
+import { hrmsSidebarItems } from '../config/sidebarItems';
+
+const EMPLOYEE_UI_URL = process.env.NEXT_PUBLIC_EMPLOYEE_UI_URL || 'http://localhost:3001';
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const { user, logout } = useAuth();
+
+  const onLogout = () => {
+    logout();
+    window.location.href = `${EMPLOYEE_UI_URL}?logout=1`;
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      <AppNavbar />
-      <div className="flex">
-        <AppSidebar />
-        <main className="flex-1 overflow-auto">
-          {children}
-        </main>
-      </div>
-    </div>
+    <AppLayout
+      sidebarItems={hrmsSidebarItems}
+      variant="hrms"
+      user={user ? { email: user.email, role: user.role } : null}
+      onLogout={onLogout}
+      showFooter={true}
+    >
+      {children}
+    </AppLayout>
   );
 }

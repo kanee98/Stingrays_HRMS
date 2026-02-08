@@ -18,6 +18,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const AUTH_SERVICE_URL = process.env.NEXT_PUBLIC_AUTH_SERVICE_URL || 'http://localhost:4001';
+const EMPLOYEE_UI_URL = process.env.NEXT_PUBLIC_EMPLOYEE_UI_URL || 'http://localhost:3001';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -30,7 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsLoading(false);
         return;
       }
-      // Single logout: when landing with ?logout=1 (from 3001 or other apps), clear and go to login
+      // Logout chain: clear this app, then pass ?logout=1 to next app so all services clear session
       const params = new URLSearchParams(window.location.search);
       if (params.get('logout') === '1') {
         setToken(null);
@@ -39,7 +40,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem('auth_user');
         document.cookie = 'auth_token=; path=/; max-age=0';
         window.history.replaceState(null, '', window.location.pathname);
-        window.location.href = '/login';
+        // Chain: HRMS → Employee → Payroll → HRMS login
+        window.location.href = `${EMPLOYEE_UI_URL}?logout=1`;
         return;
       }
       const storedToken = localStorage.getItem('auth_token');
