@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import bcrypt from "bcrypt";
 import { poolPromise } from "../config/db";
-import { signToken } from "../utils/jwt";
+import { signToken } from "../utils/paseto";
 
 export const login = async (req: Request, res: Response) => {
   const { email, password } = req.body;
@@ -31,10 +31,10 @@ export const login = async (req: Request, res: Response) => {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
-    const token = signToken({ 
-        userid: user.Id, 
-        email: user.Email, 
-        role: user.Role, 
+    const token = await signToken({
+        userid: user.Id,
+        email: user.Email,
+        role: user.Role,
     });
 
     res.json({

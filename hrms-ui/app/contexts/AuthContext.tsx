@@ -31,17 +31,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsLoading(false);
         return;
       }
-      // Logout chain: clear this app, then pass ?logout=1 to next app so all services clear session
       const params = new URLSearchParams(window.location.search);
       if (params.get('logout') === '1') {
-        setToken(null);
-        setUser(null);
         localStorage.removeItem('auth_token');
         localStorage.removeItem('auth_user');
         document.cookie = 'auth_token=; path=/; max-age=0';
-        window.history.replaceState(null, '', window.location.pathname);
-        // Chain: HRMS → Employee → Payroll → HRMS login
-        window.location.href = `${EMPLOYEE_UI_URL}?logout=1`;
+        // chain=1 means we arrived from 3010 in the chain → end at login
+        if (params.get('chain') === '1') {
+          window.location.replace('/login');
+          return;
+        }
+        // User clicked logout on 3000: start chain 3000 → 3001 → 3010 → 3000/login
+        window.location.replace(`${EMPLOYEE_UI_URL}?logout=1`);
         return;
       }
       const storedToken = localStorage.getItem('auth_token');

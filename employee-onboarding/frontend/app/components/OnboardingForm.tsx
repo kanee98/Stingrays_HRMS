@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { PersonalInfoStep } from './steps/PersonalInfoStep';
 import { DocumentsStep } from './steps/DocumentsStep';
 import { GramasevakaStep } from './steps/GramasevakaStep';
@@ -27,9 +28,12 @@ interface EmployeeData {
 }
 
 export function OnboardingForm() {
+  const searchParams = useSearchParams();
+  const existingEmployeeId = searchParams.get('employeeId');
   const [currentStep, setCurrentStep] = useState(1);
   const [employeeId, setEmployeeId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingExisting, setLoadingExisting] = useState(!!existingEmployeeId);
   const [error, setError] = useState('');
   const [employeeData, setEmployeeData] = useState<EmployeeData>({
     firstName: '',
@@ -46,6 +50,45 @@ export function OnboardingForm() {
     emergencyContactName: '',
     emergencyContactPhone: '',
   });
+
+  // When opened from a prospect: load existing employee and start at step 2
+  useEffect(() => {
+    if (!existingEmployeeId) return;
+    const id = parseInt(existingEmployeeId, 10);
+    if (Number.isNaN(id)) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/employees/${id}`);
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        const e = data as Record<string, unknown>;
+        const empId = e.Id ?? e.id;
+        setEmployeeId(typeof empId === 'number' ? empId : parseInt(String(empId), 10));
+        setEmployeeData({
+          firstName: String(e.FirstName ?? e.firstName ?? ''),
+          lastName: String(e.LastName ?? e.lastName ?? ''),
+          email: String(e.Email ?? e.email ?? ''),
+          dob: (e.DOB ?? e.dob) ? String(e.DOB ?? e.dob).split('T')[0] : '',
+          nic: String(e.NIC ?? e.nic ?? ''),
+          phone: String(e.Phone ?? e.phone ?? ''),
+          address: String(e.Address ?? e.address ?? ''),
+          city: String(e.City ?? e.city ?? ''),
+          postalCode: String(e.PostalCode ?? e.postalCode ?? ''),
+          position: String(e.Position ?? e.position ?? ''),
+          department: String(e.Department ?? e.department ?? ''),
+          emergencyContactName: String(e.EmergencyContactName ?? e.emergencyContactName ?? ''),
+          emergencyContactPhone: String(e.EmergencyContactPhone ?? e.emergencyContactPhone ?? ''),
+        });
+        setCurrentStep(2);
+      } catch {
+        if (!cancelled) setError('Failed to load employee');
+      } finally {
+        if (!cancelled) setLoadingExisting(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [existingEmployeeId]);
 
   const steps = [
     { number: 1, title: 'Personal Information' },
@@ -149,40 +192,46 @@ export function OnboardingForm() {
 
         {/* Form Content */}
         <div className="bg-white rounded-lg shadow-md p-8">
-          {currentStep === 1 && (
-            <PersonalInfoStep
-              data={employeeData}
-              onSubmit={handleNext}
-              loading={loading}
-            />
-          )}
-          {currentStep === 2 && employeeId && (
-            <DocumentsStep
-              employeeId={employeeId}
-              onNext={handleNext}
-              onBack={handleBack}
-            />
-          )}
-          {currentStep === 3 && employeeId && (
-            <GramasevakaStep
-              employeeId={employeeId}
-              onNext={handleNext}
-              onBack={handleBack}
-            />
-          )}
-          {currentStep === 4 && employeeId && (
-            <PoliceReportStep
-              employeeId={employeeId}
-              onNext={handleNext}
-              onBack={handleBack}
-            />
-          )}
-          {currentStep === 5 && employeeId && (
-            <ReviewStep
-              employeeId={employeeId}
-              employeeData={employeeData}
-              onBack={handleBack}
-            />
+          {loadingExisting ? (
+            <div className="py-12 text-center text-gray-500">Loading employee…</div>
+          ) : (
+            <>
+              {currentStep === 1 && (
+                <PersonalInfoStep
+                  data={employeeData}
+                  onSubmit={handleNext}
+                  loading={loading}
+                />
+              )}
+              {currentStep === 2 && employeeId && (
+                <DocumentsStep
+                  employeeId={employeeId}
+                  onNext={handleNext}
+                  onBack={handleBack}
+                />
+              )}
+              {currentStep === 3 && employeeId && (
+                <GramasevakaStep
+                  employeeId={employeeId}
+                  onNext={handleNext}
+                  onBack={handleBack}
+                />
+              )}
+              {currentStep === 4 && employeeId && (
+                <PoliceReportStep
+                  employeeId={employeeId}
+                  onNext={handleNext}
+                  onBack={handleBack}
+                />
+              )}
+              {currentStep === 5 && employeeId && (
+                <ReviewStep
+                  employeeId={employeeId}
+                  employeeData={employeeData}
+                  onBack={handleBack}
+                />
+              )}
+            </>
           )}
         </div>
       </div>

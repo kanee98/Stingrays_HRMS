@@ -41,6 +41,29 @@ docker compose -f docker-compose.db.yml -f docker-compose.yml up -d
 
 This starts both the database and the app. Using `docker compose build` without the DB file still only builds app images.
 
+## If "Invalid object name 'Prospects'" when uploading Excel
+
+The Prospects table is created by the onboarding schema. If the DB was initialized before that table was added, create it by running (from the project root, with the DB stack running):
+
+```bash
+docker compose -f docker-compose.db.yml run --rm mssql-init /opt/mssql-tools18/bin/sqlcmd -S mssql -U sa -P 'Kanishka#9810' -d StingraysHRMS -i /scripts/add-prospects-table.sql -C
+```
+
+Or run the full onboarding schema again (safe, only adds missing objects):
+
+```bash
+docker compose -f docker-compose.db.yml run --rm mssql-init /opt/mssql-tools18/bin/sqlcmd -S mssql -U sa -P 'Kanishka#9810' -d StingraysHRMS -i /scripts/onboarding-schema.sql -C
+```
+
+## Auth service (PASETO)
+
+Login uses **PASETO** (v3.local) tokens instead of JWT. Set one of these for the auth-service:
+
+- **`PASETO_SECRET`** – preferred; used as the secret for signing/verifying tokens.
+- **`JWT_SECRET`** – fallback if `PASETO_SECRET` is not set (so existing env still works).
+
+Use a long, random value in production (e.g. 32+ characters). The service derives a 32-byte key from it with SHA-256.
+
 ## Summary
 
 | Command | Effect |

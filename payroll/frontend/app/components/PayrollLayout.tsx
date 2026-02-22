@@ -17,14 +17,11 @@ export function PayrollLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
 
   const onLogout = () => {
-    try {
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('auth_user');
-      document.cookie = 'auth_token=; path=/; max-age=0';
-      window.location.href = `${HRMS_URL}?logout=1`;
-    } catch {
-      window.location.href = `${HRMS_URL}?logout=1`;
-    }
+    // Clear storage and redirect immediately — do NOT call logout() or setState so nothing re-renders before navigate
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('auth_user');
+    document.cookie = 'auth_token=; path=/; max-age=0';
+    window.location.replace(`${window.location.origin}/?logout=1`);
   };
 
   useEffect(() => {

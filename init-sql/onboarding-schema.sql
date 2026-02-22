@@ -206,5 +206,26 @@ BEGIN
 END
 GO
 
+-- Prospects: candidate pipeline (e.g. from Excel upload); "do the rest" = start onboarding as employee
+IF OBJECT_ID('Prospects', 'U') IS NULL
+BEGIN
+    CREATE TABLE Prospects (
+        Id INT IDENTITY(1,1) PRIMARY KEY,
+        FirstName NVARCHAR(100),
+        LastName NVARCHAR(100),
+        Email NVARCHAR(255) NULL,
+        Source NVARCHAR(100) DEFAULT 'excel_import',
+        CreatedAt DATETIME DEFAULT GETDATE(),
+        ConvertedToEmployeeId INT NULL,
+        CONSTRAINT FK_Prospects_Employees FOREIGN KEY (ConvertedToEmployeeId) REFERENCES Employees(Id)
+    );
+    PRINT 'Table Prospects created';
+END
+ELSE
+BEGIN
+    PRINT 'Table Prospects already exists';
+END
+GO
+
 PRINT 'Onboarding schema updates completed';
 GO

@@ -1,9 +1,9 @@
 import { Request, Response, NextFunction } from "express";
-import jwt from "jsonwebtoken";
+import { verifyToken } from "../utils/paseto";
 
-export const authenticate = (
-    req: Request, 
-    res: Response, 
+export const authenticate = async (
+    req: Request,
+    res: Response,
     next: NextFunction
 ) => {
     const authHeader = req.headers.authorization;
@@ -13,9 +13,9 @@ export const authenticate = (
     }
 
     const token = authHeader.split(" ")[1];
-    
+
     try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET!);
+        const decoded = await verifyToken(token);
         (req as any).user = decoded;
         next();
     } catch {

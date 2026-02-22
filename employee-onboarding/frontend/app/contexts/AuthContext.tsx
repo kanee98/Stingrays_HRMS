@@ -26,6 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let skipSetLoadingFalse = false;
     try {
       if (typeof window === 'undefined') {
         setIsLoading(false);
@@ -34,12 +35,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const params = new URLSearchParams(window.location.search);
       if (params.get('logout') === '1') {
+        // Clear storage and redirect only — do NOT setState so ProtectedRoute never re-renders with user=null
         localStorage.removeItem('auth_token');
         localStorage.removeItem('auth_user');
         document.cookie = 'auth_token=; path=/; max-age=0';
-        window.history.replaceState(null, '', window.location.pathname);
-        // Logout chain: Employee → Payroll → HRMS login
-        window.location.href = `${PAYROLL_URL}?logout=1`;
+        skipSetLoadingFalse = true;
+        // chain=1 means we came from 3010 (user logged out from Payroll) → go to 3000 to finish chain
+        if (params.get('chain') === '1') {
+          window.location.replace(`${HRMS_URL}?logout=1&chain=1`);
+        } else {
+          // User logged out from 3001 → go to 3010 next
+          window.location.replace(`${PAYROLL_URL}?logout=1`);
+        }
         return;
       }
 
@@ -77,7 +84,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
     } finally {
-      setIsLoading(false);
+      if (!skipSetLoadingFalse) setIsLoading(false);
     }
   }, []);
 
