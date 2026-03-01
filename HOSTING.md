@@ -81,7 +81,7 @@ cd Stingrays_HRMS
 The app runs in the **browser**, so every URL must use your **VPS IP** (not `localhost`).  
 Use the same IP everywhere, e.g. `203.0.113.50` → `http://203.0.113.50`.
 
-No `.env` is required for this; we’ll put the IP into `docker-compose.yml` in the next step.
+No `.env` is required for this; we’ll put the IP into a **`.env`** file on the server (next step). `.env` is git-ignored, so when you `git pull` or push, the server's host stays correct and is never overwritten.
 
 ---
 
@@ -105,28 +105,21 @@ Wait until **stingrays-mssql** is **healthy** and **stingrays-mssql-init** has *
 
 ## Step 6: Point the App at Your VPS IP and Build
 
-The browser must call your **VPS IP**, not localhost. Replace `http://localhost` with `http://YOUR_VPS_IP` in `docker-compose.yml`.
+The browser must call your **VPS IP**, not localhost. `docker-compose.yml` reads the host from the **`PUBLIC_HOST`** env var (defaults to `localhost`). On the server, create a **`.env`** file so the app uses your VPS IP. Because `.env` is git-ignored, `git pull` will **not** overwrite it.
 
-**Option A – Script (easiest)**
+**On the server only:**
 
 ```bash
 cd ~/Stingrays_HRMS
-chmod +x scripts/set-vps-url.sh
-./scripts/set-vps-url.sh http://YOUR_VPS_IP
+cp .env.example .env
+nano .env
 ```
-Use your real IP, e.g. `./scripts/set-vps-url.sh http://203.0.113.50`.
 
-**Option B – Edit by hand**
+Set your VPS IP or hostname (no `http://`, just host):
 
 ```bash
-nano docker-compose.yml
+PUBLIC_HOST=203.0.113.50
 ```
-
-Replace **every** `http://localhost` with `http://YOUR_VPS_IP` (e.g. `http://203.0.113.50`). So:
-
-- `http://localhost:4001` → `http://203.0.113.50:4001`
-- `http://localhost:3000` → `http://203.0.113.50:3000`
-- …and the same for 3001, 4000, 4010, 3010.
 
 Save: **Ctrl+O**, **Enter**, **Ctrl+X**.
 
@@ -319,9 +312,8 @@ docker exec -it stingrays-mssql /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa
 
 - **Login works locally but “Failed to fetch” on the server**  
   - The frontend is built with the auth URL **at build time**. If the image was built with `localhost`, the browser (on the user’s PC) tries to call `localhost:4001` and fails.  
-  - **Fix:** Replace all `http://localhost` with your VPS IP in `docker-compose.yml` (e.g. run `./scripts/set-vps-url.sh http://107.175.85.91`), then **rebuild and restart**:  
-    `sudo docker compose build --no-cache && sudo docker compose up -d`  
-  - The compose file now passes these URLs as **build args**, so the rebuild bakes the correct URLs into the app.
+  - **Fix:** On the server, ensure `.env` contains `PUBLIC_HOST=YOUR_VPS_IP` (e.g. `PUBLIC_HOST=107.175.85.91`), then **rebuild and restart**:  
+    `sudo docker compose build --no-cache && sudo docker compose up -d`
 
 - **Database connection errors**  
   - Start DB first: `sudo docker compose -f docker-compose.db.yml up -d`  
@@ -338,7 +330,7 @@ docker exec -it stingrays-mssql /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa
 1. Connect with PuTTY (VPS IP, port 22).
 2. Update Ubuntu and install Docker: `sudo apt update && sudo apt upgrade -y` then the Docker install block from Step 2.
 3. Clone or upload project; `cd ~/Stingrays_HRMS`.
-4. Replace every `http://localhost` in `docker-compose.yml` with `http://YOUR_VPS_IP` (script or nano).
+4. On the server, create `.env` from `.env.example` and set `PUBLIC_HOST=YOUR_VPS_IP` (so git pull never overwrites it).
 5. Start DB: `sudo docker compose -f docker-compose.db.yml up -d`; wait for healthy + init done.
 6. Build and start app: `sudo docker compose build --no-cache && sudo docker compose up -d`.
 7. Open firewall: ports 3000, 3001, 3010, 4000, 4001, 4010.

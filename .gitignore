@@ -1,2 +1,4 @@
 init-sql/init-db.sh
-init-sql/init-db.sh
+
+# Local/server-specific env (do not commit; server keeps its own .env)
+.env
