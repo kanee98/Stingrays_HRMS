@@ -16,9 +16,11 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const HRMS_URL = process.env.NEXT_PUBLIC_HRMS_URL || 'http://localhost:3000';
-const EMPLOYEE_UI_URL = process.env.NEXT_PUBLIC_EMPLOYEE_UI_URL || 'http://localhost:3001';
-const PAYROLL_URL = process.env.NEXT_PUBLIC_PAYROLL_URL || 'http://localhost:3010';
+/** Same host as current page, different port — works on localhost and server without build-time env */
+function appUrl(port: number) {
+  if (typeof window === 'undefined') return `http://localhost:${port}`;
+  return `${window.location.protocol}//${window.location.hostname}:${port}`;
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -41,7 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem('auth_user');
         document.cookie = 'auth_token=; path=/; max-age=0';
         skipSetLoadingFalse = true;
-        window.location.replace(`${EMPLOYEE_UI_URL}?logout=1&chain=1`);
+        window.location.replace(`${appUrl(3001)}?logout=1&chain=1`);
         return;
       }
 

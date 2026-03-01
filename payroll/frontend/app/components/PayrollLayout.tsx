@@ -5,8 +5,11 @@ import { AppLayout } from '@shared/components/AppLayout';
 import { useAuth } from '../contexts/AuthContext';
 import { payrollSidebarItems } from '../config/sidebarItems';
 
-const HRMS_URL = process.env.NEXT_PUBLIC_HRMS_URL || 'http://localhost:3000';
-const PAYROLL_URL = process.env.NEXT_PUBLIC_PAYROLL_URL || 'http://localhost:3010';
+/** Same host, different port — so redirect works on localhost and server */
+function appUrl(port: number) {
+  if (typeof window === 'undefined') return `http://localhost:${port}`;
+  return `${window.location.protocol}//${window.location.hostname}:${port}`;
+}
 
 /**
  * Payroll microservice layout: uniform AppLayout from hrms-ui shared.
@@ -27,7 +30,7 @@ export function PayrollLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (isLoading) return;
     if (!user) {
-      window.location.href = `${HRMS_URL}/login?returnUrl=${encodeURIComponent(PAYROLL_URL)}`;
+      window.location.href = `${appUrl(3000)}/login?returnUrl=${encodeURIComponent(window.location.origin)}`;
     }
   }, [user, isLoading]);
 

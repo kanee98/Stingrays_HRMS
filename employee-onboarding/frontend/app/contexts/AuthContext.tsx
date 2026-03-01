@@ -17,8 +17,11 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const HRMS_URL = process.env.NEXT_PUBLIC_HRMS_URL || 'http://localhost:3000';
-const PAYROLL_URL = process.env.NEXT_PUBLIC_PAYROLL_URL || 'http://localhost:3010';
+/** Same host as current page, different port — works on localhost and server without build-time env */
+function appUrl(port: number) {
+  if (typeof window === 'undefined') return `http://localhost:${port}`;
+  return `${window.location.protocol}//${window.location.hostname}:${port}`;
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -42,10 +45,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         skipSetLoadingFalse = true;
         // chain=1 means we came from 3010 (user logged out from Payroll) → go to 3000 to finish chain
         if (params.get('chain') === '1') {
-          window.location.replace(`${HRMS_URL}?logout=1&chain=1`);
+          window.location.replace(`${appUrl(3000)}?logout=1&chain=1`);
         } else {
           // User logged out from 3001 → go to 3010 next
-          window.location.replace(`${PAYROLL_URL}?logout=1`);
+          window.location.replace(`${appUrl(3010)}?logout=1`);
         }
         return;
       }

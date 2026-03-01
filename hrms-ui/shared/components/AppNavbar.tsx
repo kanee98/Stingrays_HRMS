@@ -1,8 +1,10 @@
 'use client';
 
-const HRMS_URL = process.env.NEXT_PUBLIC_HRMS_URL || 'http://localhost:3000';
-const EMPLOYEE_UI_URL = process.env.NEXT_PUBLIC_EMPLOYEE_UI_URL || 'http://localhost:3001';
-const PAYROLL_URL = process.env.NEXT_PUBLIC_PAYROLL_URL || 'http://localhost:3010';
+/** Same host as current page, different port — works on localhost and server */
+function appUrl(port: number) {
+  if (typeof window === 'undefined') return `http://localhost:${port}`;
+  return `${window.location.protocol}//${window.location.hostname}:${port}`;
+}
 
 export interface AppNavbarUser {
   email: string;
@@ -21,6 +23,10 @@ export function AppNavbar({ variant, user = null, onLogout }: AppNavbarProps) {
   const isPayroll = variant === 'payroll';
   const activeClass = 'text-gray-900 border-b-2 border-indigo-600 hover:text-indigo-600';
   const inactiveClass = 'text-gray-500 hover:text-indigo-600';
+
+  const HRMS_URL = appUrl(3000);
+  const EMPLOYEE_UI_URL = appUrl(3001);
+  const PAYROLL_URL = appUrl(3010);
 
   return (
     <header className="bg-white shadow-sm border-b border-gray-200">

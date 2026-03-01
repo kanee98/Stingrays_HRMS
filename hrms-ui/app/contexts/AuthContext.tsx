@@ -18,7 +18,12 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const AUTH_SERVICE_URL = process.env.NEXT_PUBLIC_AUTH_SERVICE_URL || 'http://localhost:4001';
-const EMPLOYEE_UI_URL = process.env.NEXT_PUBLIC_EMPLOYEE_UI_URL || 'http://localhost:3001';
+
+/** Same host as current page, different port — works on localhost and server without build-time env */
+function appUrl(port: number) {
+  if (typeof window === 'undefined') return `http://localhost:${port}`;
+  return `${window.location.protocol}//${window.location.hostname}:${port}`;
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -42,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
         // User clicked logout on 3000: start chain 3000 → 3001 → 3010 → 3000/login
-        window.location.replace(`${EMPLOYEE_UI_URL}?logout=1`);
+        window.location.replace(`${appUrl(3001)}?logout=1`);
         return;
       }
       const storedToken = localStorage.getItem('auth_token');
