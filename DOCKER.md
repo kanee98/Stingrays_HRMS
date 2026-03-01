@@ -41,6 +41,29 @@ docker compose -f docker-compose.db.yml -f docker-compose.yml up -d
 
 This starts both the database and the app. Using `docker compose build` without the DB file still only builds app images.
 
+## If "Dockerfile not found" or build fails (DockerFile vs Dockerfile)
+
+On Windows, the file can be saved or tracked as **DockerFile** (capital F). Docker and Git expect **Dockerfile** (lowercase f). Fix it once:
+
+**Windows (PowerShell, from project root):**
+```powershell
+.\scripts\fix-dockerfile-casing.ps1
+git add -A
+git status
+```
+Then commit so Git tracks the correct name: `git commit -m "Fix Dockerfile casing"`
+
+**Linux / Mac / Git Bash (from project root):**
+```bash
+chmod +x scripts/fix-dockerfile-casing.sh
+./scripts/fix-dockerfile-casing.sh
+git add -A
+git status
+```
+Then commit. After that, `docker compose build` will find the Dockerfiles.
+
+---
+
 ## If "Invalid object name 'Prospects'" when uploading Excel
 
 The Prospects table is created by the onboarding schema. If the DB was initialized before that table was added, create it by running (from the project root, with the DB stack running):

@@ -1,2 +1,11 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# Force consistent line endings
+* text=auto eol=lf
+
+# Ensure Dockerfile is tracked with correct name (lowercase 'f').
+# If your system created DockerFile, run: scripts/fix-dockerfile-casing.ps1 (Windows) or scripts/fix-dockerfile-casing.sh (Linux/Mac)
+hrms-ui/Dockerfile text
+payroll/frontend/Dockerfile text
+payroll/backend/Dockerfile text
+employee-onboarding/frontend/Dockerfile text
+employee-onboarding/backend/Dockerfile text
+auth-service/Dockerfile text
