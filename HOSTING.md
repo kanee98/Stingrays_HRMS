@@ -2,6 +2,8 @@
 
 This guide deploys the full HRMS stack on **Ubuntu** and uses your **VPS IP** (no domain yet). Use PuTTY to connect from Windows.
 
+**Using a subdomain and reverse proxy (Nginx + HTTPS)?** See **[PROXY.md](PROXY.md)** for DNS, Nginx, SSL, and locking down app ports.
+
 ---
 
 ## What You Need
