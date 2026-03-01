@@ -14,7 +14,7 @@ app.use(express.json());
 app.use("/api/auth", authRoutes);
 app.use("/api/users", usersRoutes);
 
-const PORT = process.env.PORT || 4000;
+const PORT = Number(process.env.PORT) || 4000;
 
 // Initialize database connection before starting server
 ensureDbConnection()
