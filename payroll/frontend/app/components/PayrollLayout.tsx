@@ -5,10 +5,14 @@ import { AppLayout } from '@shared/components/AppLayout';
 import { useAuth } from '../contexts/AuthContext';
 import { payrollSidebarItems } from '../config/sidebarItems';
 
-/** Same host, different port — so redirect works on localhost and server */
-function appUrl(port: number) {
-  if (typeof window === 'undefined') return `http://localhost:${port}`;
-  return `${window.location.protocol}//${window.location.hostname}:${port}`;
+/** HRMS URL: use hrms subdomain when on subdomain, else same host:3000 */
+function getHrmsUrl(): string {
+  if (typeof window === 'undefined') return 'http://localhost:3000';
+  if (window.location.hostname !== 'localhost') {
+    const parts = window.location.hostname.split('.');
+    if (parts.length >= 2) return `${window.location.protocol}//hrms.${parts.slice(-2).join('.')}`;
+  }
+  return `${window.location.protocol}//${window.location.hostname}:3000`;
 }
 
 /**
@@ -30,7 +34,7 @@ export function PayrollLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (isLoading) return;
     if (!user) {
-      window.location.href = `${appUrl(3000)}/login?returnUrl=${encodeURIComponent(window.location.origin)}`;
+      window.location.href = `${getHrmsUrl()}/login?returnUrl=${encodeURIComponent(window.location.origin)}`;
     }
   }, [user, isLoading]);
 

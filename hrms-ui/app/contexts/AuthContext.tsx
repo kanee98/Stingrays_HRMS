@@ -17,9 +17,16 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const AUTH_SERVICE_URL = process.env.NEXT_PUBLIC_AUTH_SERVICE_URL || 'http://localhost:4001';
+/** Auth API URL: use subdomain (auth.DOMAIN) when on subdomain, else env or localhost */
+function getAuthServiceUrl(): string {
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    const parts = window.location.hostname.split('.');
+    if (parts.length >= 2) return `${window.location.protocol}//auth.${parts.slice(-2).join('.')}`;
+  }
+  return process.env.NEXT_PUBLIC_AUTH_SERVICE_URL || 'http://localhost:4001';
+}
 
-/** Same host as current page, different port — works on localhost and server without build-time env */
+/** Same host as current page, different port — works on localhost and server */
 function appUrl(port: number) {
   if (typeof window === 'undefined') return `http://localhost:${port}`;
   return `${window.location.protocol}//${window.location.hostname}:${port}`;
@@ -67,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    const response = await fetch(`${AUTH_SERVICE_URL}/api/auth/login`, {
+    const response = await fetch(`${getAuthServiceUrl()}/api/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

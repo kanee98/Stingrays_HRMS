@@ -5,9 +5,17 @@ import { DashboardLayout } from './components/DashboardLayout';
 import { useAuth } from './contexts/AuthContext';
 import Link from 'next/link';
 
+/** HRMS URL: use hrms subdomain when on subdomain, else env or localhost */
+function getHrmsUrl(): string {
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    const parts = window.location.hostname.split('.');
+    if (parts.length >= 2) return `${window.location.protocol}//hrms.${parts.slice(-2).join('.')}`;
+  }
+  return process.env.NEXT_PUBLIC_HRMS_URL || 'http://localhost:3000';
+}
+
 function DashboardHome() {
   const { user } = useAuth();
-  const HRMS_URL = process.env.NEXT_PUBLIC_HRMS_URL || 'http://localhost:3000';
 
   return (
     <div className="p-6 lg:p-8">
@@ -104,7 +112,7 @@ function DashboardHome() {
             <span className="text-gray-700 font-medium">Document Templates</span>
           </Link>
           <a
-            href={HRMS_URL}
+            href={getHrmsUrl()}
             className="flex items-center p-4 border border-gray-200 rounded-lg hover:border-indigo-600 hover:bg-indigo-50 transition"
           >
             <svg className="w-5 h-5 text-indigo-600 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
