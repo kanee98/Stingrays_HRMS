@@ -71,7 +71,8 @@ services:
     ports:
       - "4001:4000"
     environment:
-      DB_HOST: mssql
+      # Use container name so DB is reachable when using docker-compose.db.yml
+      DB_HOST: stingrays-mssql
       DB_PORT: 1433
       DB_USER: sa
       DB_PASSWORD: "Kanishka#9810"
@@ -81,6 +82,7 @@ services:
     networks:
       - default
       - hrms-db
+    restart: unless-stopped
 
 networks:
   hrms-db:
