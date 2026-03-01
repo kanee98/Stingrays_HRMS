@@ -1,9 +1,34 @@
 'use client';
 
-/** Same host as current page, different port — works on localhost and server */
+/** Base domain (e.g. stingraysglobal.com) when on subdomain; null on localhost */
+function getBaseDomain(): string | null {
+  if (typeof window === 'undefined' || window.location.hostname === 'localhost') return null;
+  const parts = window.location.hostname.split('.');
+  return parts.length >= 2 ? parts.slice(-2).join('.') : null;
+}
+
+/** Same host + port for localhost; subdomain URL (no port) when on subdomain */
 function appUrl(port: number) {
   if (typeof window === 'undefined') return `http://localhost:${port}`;
   return `${window.location.protocol}//${window.location.hostname}:${port}`;
+}
+
+function getHrmsUrl(): string {
+  const base = getBaseDomain();
+  if (base) return `${typeof window !== 'undefined' ? window.location.protocol : 'https:'}//hrms.${base}`;
+  return appUrl(3000);
+}
+
+function getEmployeeUrl(): string {
+  const base = getBaseDomain();
+  if (base) return `${typeof window !== 'undefined' ? window.location.protocol : 'https:'}//employee.${base}`;
+  return appUrl(3001);
+}
+
+function getPayrollUrl(): string {
+  const base = getBaseDomain();
+  if (base) return `${typeof window !== 'undefined' ? window.location.protocol : 'https:'}//payroll.${base}`;
+  return appUrl(3010);
 }
 
 export interface AppNavbarUser {
@@ -24,9 +49,9 @@ export function AppNavbar({ variant, user = null, onLogout }: AppNavbarProps) {
   const activeClass = 'text-gray-900 border-b-2 border-indigo-600 hover:text-indigo-600';
   const inactiveClass = 'text-gray-500 hover:text-indigo-600';
 
-  const HRMS_URL = appUrl(3000);
-  const EMPLOYEE_UI_URL = appUrl(3001);
-  const PAYROLL_URL = appUrl(3010);
+  const HRMS_URL = getHrmsUrl();
+  const EMPLOYEE_UI_URL = getEmployeeUrl();
+  const PAYROLL_URL = getPayrollUrl();
 
   return (
     <header className="bg-white shadow-sm border-b border-gray-200">

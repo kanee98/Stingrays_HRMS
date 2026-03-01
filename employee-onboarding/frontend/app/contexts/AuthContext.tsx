@@ -17,10 +17,30 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-/** Same host as current page, different port — works on localhost and server without build-time env */
+/** Same host + port for localhost; subdomain URL (no port) when on subdomain */
 function appUrl(port: number) {
   if (typeof window === 'undefined') return `http://localhost:${port}`;
   return `${window.location.protocol}//${window.location.hostname}:${port}`;
+}
+
+function getBaseDomain(): string | null {
+  if (typeof window === 'undefined' || window.location.hostname === 'localhost') return null;
+  const parts = window.location.hostname.split('.');
+  return parts.length >= 2 ? parts.slice(-2).join('.') : null;
+}
+
+/** HRMS URL for logout chain */
+function getHrmsUrl(): string {
+  const base = getBaseDomain();
+  if (base) return `${typeof window !== 'undefined' ? window.location.protocol : 'https:'}//hrms.${base}`;
+  return appUrl(3000);
+}
+
+/** Payroll URL for logout chain */
+function getPayrollUrl(): string {
+  const base = getBaseDomain();
+  if (base) return `${typeof window !== 'undefined' ? window.location.protocol : 'https:'}//payroll.${base}`;
+  return appUrl(3010);
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -45,10 +65,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         skipSetLoadingFalse = true;
         // chain=1 means we came from 3010 (user logged out from Payroll) → go to 3000 to finish chain
         if (params.get('chain') === '1') {
-          window.location.replace(`${appUrl(3000)}?logout=1&chain=1`);
+          window.location.replace(`${getHrmsUrl()}?logout=1&chain=1`);
         } else {
           // User logged out from 3001 → go to 3010 next
-          window.location.replace(`${appUrl(3010)}?logout=1`);
+          window.location.replace(`${getPayrollUrl()}?logout=1`);
         }
         return;
       }

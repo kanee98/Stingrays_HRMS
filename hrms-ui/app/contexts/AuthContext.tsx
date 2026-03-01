@@ -26,10 +26,18 @@ function getAuthServiceUrl(): string {
   return process.env.NEXT_PUBLIC_AUTH_SERVICE_URL || 'http://localhost:4001';
 }
 
-/** Same host as current page, different port — works on localhost and server */
+/** Same host + port for localhost; subdomain URL (no port) when on subdomain */
 function appUrl(port: number) {
   if (typeof window === 'undefined') return `http://localhost:${port}`;
   return `${window.location.protocol}//${window.location.hostname}:${port}`;
+}
+
+/** Employee app URL for logout chain: subdomain (employee.DOMAIN) or same host:3001 */
+function getEmployeeUrl(): string {
+  if (typeof window === 'undefined') return 'http://localhost:3001';
+  const parts = window.location.hostname.split('.');
+  if (parts.length >= 2) return `${window.location.protocol}//employee.${parts.slice(-2).join('.')}`;
+  return appUrl(3001);
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -54,7 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
         // User clicked logout on 3000: start chain 3000 → 3001 → 3010 → 3000/login
-        window.location.replace(`${appUrl(3001)}?logout=1`);
+        window.location.replace(`${getEmployeeUrl()}?logout=1`);
         return;
       }
       const storedToken = localStorage.getItem('auth_token');
