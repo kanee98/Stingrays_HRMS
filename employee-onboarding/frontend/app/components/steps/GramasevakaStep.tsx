@@ -8,9 +8,10 @@ interface GramasevakaStepProps {
   employeeId: number;
   onNext: () => void;
   onBack: () => void;
+  nextLabel?: string;
 }
 
-export function GramasevakaStep({ employeeId, onNext, onBack }: GramasevakaStepProps) {
+export function GramasevakaStep({ employeeId, onNext, onBack, nextLabel }: GramasevakaStepProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
@@ -171,7 +172,7 @@ export function GramasevakaStep({ employeeId, onNext, onBack }: GramasevakaStepP
           disabled={loading}
           className="px-6 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition"
         >
-          {loading ? 'Saving...' : 'Next: Police Report'}
+          {loading ? 'Saving...' : (nextLabel ?? 'Next: Police Report')}
         </button>
       </div>
     </form>

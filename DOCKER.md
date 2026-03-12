@@ -78,6 +78,15 @@ Or run the full onboarding schema again (safe, only adds missing objects):
 docker compose -f docker-compose.db.yml run --rm mssql-init /opt/mssql-tools18/bin/sqlcmd -S mssql -U sa -P 'Kanishka#9810' -d StingraysHRMS -i /scripts/onboarding-schema.sql -C
 ```
 
+### Configurable onboarding (document types and step visibility)
+
+If you need the configurable document types or optional Gramasevaka/Police Report steps, run (with the DB stack running):
+
+```bash
+docker compose -f docker-compose.db.yml run --rm mssql-init /opt/mssql-tools18/bin/sqlcmd -S mssql -U sa -P 'Kanishka#9810' -d StingraysHRMS -i /scripts/add-onboarding-document-types.sql -C
+docker compose -f docker-compose.db.yml run --rm mssql-init /opt/mssql-tools18/bin/sqlcmd -S mssql -U sa -P 'Kanishka#9810' -d StingraysHRMS -i /scripts/add-onboarding-settings.sql -C
+```
+
 ## Auth service (PASETO)
 
 Login uses **PASETO** (v3.local) tokens instead of JWT. Set one of these for the auth-service:

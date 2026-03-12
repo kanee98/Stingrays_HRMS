@@ -17,8 +17,10 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 // Routes
 const employeesRouter = require("./routes/employees");
 const prospectsRouter = require("./routes/prospects");
+const settingsRouter = require("./routes/settings");
 app.use("/api/employees", employeesRouter);
 app.use("/api/prospects", prospectsRouter);
+app.use("/api/settings", settingsRouter);
 
 // Health check
 app.get("/health", (req, res) => {
@@ -79,7 +81,57 @@ async function ensureProspectsTable() {
   }
 }
 
+// Create OnboardingSettings and OnboardingDocumentTypes if missing (so settings UI works without manual init-sql)
+async function ensureOnboardingSettingsTable() {
+  try {
+    const pool = await getPool();
+    const check = await pool.request().query(
+      "SELECT OBJECT_ID('OnboardingSettings', 'U') AS TableId"
+    );
+    if (check.recordset[0]?.TableId != null) return;
+    await pool.request().query(`
+      CREATE TABLE OnboardingSettings (
+        Id INT IDENTITY(1,1) PRIMARY KEY,
+        ShowGramasevakaStep BIT NOT NULL DEFAULT 1,
+        ShowPoliceReportStep BIT NOT NULL DEFAULT 1,
+        UpdatedAt DATETIME NULL
+      );
+      INSERT INTO OnboardingSettings (ShowGramasevakaStep, ShowPoliceReportStep) VALUES (1, 1);
+    `);
+    console.log("OnboardingSettings table created");
+  } catch (err) {
+    console.error("Failed to ensure OnboardingSettings table:", err.message);
+  }
+}
+
+async function ensureOnboardingDocumentTypesTable() {
+  try {
+    const pool = await getPool();
+    const check = await pool.request().query(
+      "SELECT OBJECT_ID('OnboardingDocumentTypes', 'U') AS TableId"
+    );
+    if (check.recordset[0]?.TableId != null) return;
+    await pool.request().query(`
+      CREATE TABLE OnboardingDocumentTypes (
+        Id INT IDENTITY(1,1) PRIMARY KEY,
+        Name NVARCHAR(200) NOT NULL,
+        IsRequired BIT NOT NULL DEFAULT 1,
+        SortOrder INT NOT NULL DEFAULT 0,
+        IsActive BIT NOT NULL DEFAULT 1,
+        Description NVARCHAR(500) NULL,
+        CreatedAt DATETIME DEFAULT GETDATE(),
+        UpdatedAt DATETIME NULL
+      );
+    `);
+    console.log("OnboardingDocumentTypes table created");
+  } catch (err) {
+    console.error("Failed to ensure OnboardingDocumentTypes table:", err.message);
+  }
+}
+
 ensureProspectsTable()
+  .then(ensureOnboardingSettingsTable)
+  .then(ensureOnboardingDocumentTypesTable)
   .then(() => {
     app.listen(PORT, () => {
       console.log(`Employee API running on port ${PORT}`);

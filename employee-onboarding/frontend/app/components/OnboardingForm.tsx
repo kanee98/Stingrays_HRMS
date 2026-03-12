@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { PersonalInfoStep } from './steps/PersonalInfoStep';
 import { DocumentsStep } from './steps/DocumentsStep';
@@ -9,6 +9,8 @@ import { PoliceReportStep } from './steps/PoliceReportStep';
 import { ReviewStep } from './steps/ReviewStep';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+type StepId = 'personal' | 'documents' | 'gramasevaka' | 'police' | 'review';
 
 interface EmployeeData {
   id?: number;
@@ -34,6 +36,10 @@ export function OnboardingForm() {
   const [employeeId, setEmployeeId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingExisting, setLoadingExisting] = useState(!!existingEmployeeId);
+  const [onboardingSettings, setOnboardingSettings] = useState<{
+    showGramasevakaStep: boolean;
+    showPoliceReportStep: boolean;
+  } | null>(null);
   const [error, setError] = useState('');
   const [employeeData, setEmployeeData] = useState<EmployeeData>({
     firstName: '',
@@ -50,6 +56,27 @@ export function OnboardingForm() {
     emergencyContactName: '',
     emergencyContactPhone: '',
   });
+
+  // Fetch onboarding step visibility (Gramasevaka, Police Report optional)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/settings/onboarding`);
+        if (!res.ok || cancelled) return;
+        const data = await res.json();
+        if (!cancelled) {
+          setOnboardingSettings({
+            showGramasevakaStep: data.showGramasevakaStep !== false,
+            showPoliceReportStep: data.showPoliceReportStep !== false,
+          });
+        }
+      } catch {
+        if (!cancelled) setOnboardingSettings({ showGramasevakaStep: true, showPoliceReportStep: true });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   // When opened from a prospect: load existing employee and start at step 2
   useEffect(() => {
@@ -90,13 +117,25 @@ export function OnboardingForm() {
     return () => { cancelled = true; };
   }, [existingEmployeeId]);
 
-  const steps = [
-    { number: 1, title: 'Personal Information' },
-    { number: 2, title: 'Documents' },
-    { number: 3, title: 'Gramasevaka Details' },
-    { number: 4, title: 'Police Report' },
-    { number: 5, title: 'Review & Contract' },
-  ];
+  const steps = useMemo(() => {
+    const showGramasevaka = onboardingSettings?.showGramasevakaStep !== false;
+    const showPolice = onboardingSettings?.showPoliceReportStep !== false;
+    const list: { number: number; title: string; id: StepId }[] = [
+      { number: 1, title: 'Personal Information', id: 'personal' },
+      { number: 2, title: 'Documents', id: 'documents' },
+    ];
+    if (showGramasevaka) list.push({ number: list.length + 1, title: 'Gramasevaka Details', id: 'gramasevaka' });
+    if (showPolice) list.push({ number: list.length + 1, title: 'Police Report', id: 'police' });
+    list.push({ number: list.length + 1, title: 'Review & Contract', id: 'review' });
+    return list.map((s, i) => ({ ...s, number: i + 1 }));
+  }, [onboardingSettings]);
+
+  // Clamp current step when steps shrink (e.g. after settings load with optional steps off)
+  useEffect(() => {
+    if (steps.length > 0 && currentStep > steps.length) {
+      setCurrentStep(steps.length);
+    }
+  }, [steps.length, currentStep]);
 
   const handleNext = async (data?: any) => {
     if (currentStep === 1) {
@@ -142,16 +181,16 @@ export function OnboardingForm() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 py-8 px-4">
+    <div className="min-h-screen bg-[var(--background)] py-8 px-4">
       <div className="max-w-5xl mx-auto">
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Employee Onboarding</h1>
-          <p className="text-gray-600">Complete all steps to finalize your onboarding process</p>
+        <div className="bg-[var(--surface)] border border-[var(--surface-border)] rounded-[var(--radius)] shadow-[var(--shadow)] p-6 mb-6">
+          <h1 className="text-3xl font-bold text-[var(--foreground)] mb-2">Employee Onboarding</h1>
+          <p className="text-[var(--muted)]">Complete all steps to finalize your onboarding process</p>
         </div>
 
         {/* Progress Steps */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div className="bg-[var(--surface)] border border-[var(--surface-border)] rounded-[var(--radius)] shadow-[var(--shadow)] p-6 mb-6">
           <div className="flex items-center justify-between">
             {steps.map((step, index) => (
               <div key={step.number} className="flex items-center flex-1">
@@ -161,20 +200,20 @@ export function OnboardingForm() {
                     disabled={!employeeId && step.number > 1}
                     className={`w-12 h-12 rounded-full flex items-center justify-center font-semibold transition ${
                       currentStep >= step.number
-                        ? 'bg-indigo-600 text-white'
-                        : 'bg-gray-200 text-gray-600'
+                        ? 'bg-[var(--primary)] text-white'
+                        : 'bg-[var(--surface-border)] text-[var(--muted)]'
                     } ${!employeeId && step.number > 1 ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
                   >
                     {step.number}
                   </button>
-                  <span className="mt-2 text-xs font-medium text-gray-600 text-center">
+                  <span className="mt-2 text-xs font-medium text-[var(--muted)] text-center">
                     {step.title}
                   </span>
                 </div>
                 {index < steps.length - 1 && (
                   <div
                     className={`flex-1 h-1 mx-2 ${
-                      currentStep > step.number ? 'bg-indigo-600' : 'bg-gray-200'
+                      currentStep > step.number ? 'bg-[var(--primary)]' : 'bg-[var(--surface-border)]'
                     }`}
                   />
                 )}
@@ -191,47 +230,66 @@ export function OnboardingForm() {
         )}
 
         {/* Form Content */}
-        <div className="bg-white rounded-lg shadow-md p-8">
+        <div className="bg-[var(--surface)] border border-[var(--surface-border)] rounded-[var(--radius)] shadow-[var(--shadow)] p-8">
           {loadingExisting ? (
             <div className="py-12 text-center text-gray-500">Loading employee…</div>
           ) : (
-            <>
-              {currentStep === 1 && (
-                <PersonalInfoStep
-                  data={employeeData}
-                  onSubmit={handleNext}
-                  loading={loading}
-                />
-              )}
-              {currentStep === 2 && employeeId && (
-                <DocumentsStep
-                  employeeId={employeeId}
-                  onNext={handleNext}
-                  onBack={handleBack}
-                />
-              )}
-              {currentStep === 3 && employeeId && (
-                <GramasevakaStep
-                  employeeId={employeeId}
-                  onNext={handleNext}
-                  onBack={handleBack}
-                />
-              )}
-              {currentStep === 4 && employeeId && (
-                <PoliceReportStep
-                  employeeId={employeeId}
-                  onNext={handleNext}
-                  onBack={handleBack}
-                />
-              )}
-              {currentStep === 5 && employeeId && (
-                <ReviewStep
-                  employeeId={employeeId}
-                  employeeData={employeeData}
-                  onBack={handleBack}
-                />
-              )}
-            </>
+            (() => {
+              const step = steps[currentStep - 1];
+              if (!step) return <div className="py-12 text-center text-gray-500">Loading steps…</div>;
+              if (step.id === 'personal') {
+                return (
+                  <PersonalInfoStep
+                    data={employeeData}
+                    onSubmit={handleNext}
+                    loading={loading}
+                  />
+                );
+              }
+              if (step.id === 'documents' && employeeId) {
+                const nextStep = steps[currentStep];
+                return (
+                  <DocumentsStep
+                    employeeId={employeeId}
+                    onNext={handleNext}
+                    onBack={handleBack}
+                    nextLabel={nextStep ? `Next: ${nextStep.title}` : undefined}
+                  />
+                );
+              }
+              if (step.id === 'gramasevaka' && employeeId) {
+                const nextStep = steps[currentStep];
+                return (
+                  <GramasevakaStep
+                    employeeId={employeeId}
+                    onNext={handleNext}
+                    onBack={handleBack}
+                    nextLabel={nextStep ? `Next: ${nextStep.title}` : undefined}
+                  />
+                );
+              }
+              if (step.id === 'police' && employeeId) {
+                const nextStep = steps[currentStep];
+                return (
+                  <PoliceReportStep
+                    employeeId={employeeId}
+                    onNext={handleNext}
+                    onBack={handleBack}
+                    nextLabel={nextStep ? `Next: ${nextStep.title}` : undefined}
+                  />
+                );
+              }
+              if (step.id === 'review' && employeeId) {
+                return (
+                  <ReviewStep
+                    employeeId={employeeId}
+                    employeeData={employeeData}
+                    onBack={handleBack}
+                  />
+                );
+              }
+              return <div className="py-12 text-center text-gray-500">Loading…</div>;
+            })()
           )}
         </div>
       </div>

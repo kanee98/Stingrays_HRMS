@@ -1,4 +1,6 @@
-FROM node:20-alpine
+# Use Debian-based image so glibc is present; native @next/swc-linux-x64-gnu and Turbopack work.
+# Alpine (musl) causes SWC to fall back to WASM, which does not support turbo.createProject.
+FROM node:20-bookworm-slim
 WORKDIR /workspace
 COPY payroll/frontend/package*.json payroll/frontend/
 WORKDIR payroll/frontend

@@ -119,25 +119,29 @@ router.post('/', async (req, res) => {
 
     const employeeId = result.recordset[0].Id;
 
-    // Create default checklist items
-    const checklistItems = [
-      { name: 'Personal Information', type: 'information', required: true },
-      { name: 'NIC Copy', type: 'document', required: true },
-      { name: 'Birth Certificate', type: 'document', required: true },
-      { name: 'Educational Certificates', type: 'document', required: true },
-      { name: 'Police Report', type: 'document', required: true },
-      { name: 'Gramasevaka Certificate', type: 'document', required: true },
-      { name: 'Medical Report', type: 'document', required: false },
-      { name: 'Reference Letters', type: 'document', required: false },
-    ];
+    // Fixed checklist item: Personal Information
+    await pool
+      .request()
+      .input('employeeId', sql.Int, employeeId)
+      .input('itemName', sql.NVarChar, 'Personal Information')
+      .input('itemType', sql.NVarChar, 'information')
+      .input('isRequired', sql.Bit, 1)
+      .query(`
+        INSERT INTO OnboardingChecklist (EmployeeId, ItemName, ItemType, IsRequired)
+        VALUES (@employeeId, @itemName, @itemType, @isRequired)
+      `);
 
-    for (const item of checklistItems) {
+    // Document checklist items from OnboardingDocumentTypes (active only)
+    const docTypesResult = await pool.request().query(`
+      SELECT Name, IsRequired FROM OnboardingDocumentTypes WHERE IsActive = 1 ORDER BY SortOrder ASC, Id ASC
+    `);
+    for (const row of docTypesResult.recordset) {
       await pool
         .request()
         .input('employeeId', sql.Int, employeeId)
-        .input('itemName', sql.NVarChar, item.name)
-        .input('itemType', sql.NVarChar, item.type)
-        .input('isRequired', sql.Bit, item.required)
+        .input('itemName', sql.NVarChar, row.Name)
+        .input('itemType', sql.NVarChar, 'document')
+        .input('isRequired', sql.Bit, row.IsRequired ? 1 : 0)
         .query(`
           INSERT INTO OnboardingChecklist (EmployeeId, ItemName, ItemType, IsRequired)
           VALUES (@employeeId, @itemName, @itemType, @isRequired)
@@ -252,13 +256,28 @@ router.post('/:id/documents', upload.single('document'), async (req, res) => {
 
     const pool = await getPool();
     const { documentType } = req.body;
+    if (!documentType || typeof documentType !== 'string' || !documentType.trim()) {
+      return res.status(400).json({ error: 'documentType is required' });
+    }
+    const docTypeName = documentType.trim();
+
+    // Validate against active OnboardingDocumentTypes
+    const typesResult = await pool.request().query(
+      'SELECT Name FROM OnboardingDocumentTypes WHERE IsActive = 1'
+    );
+    const allowedNames = typesResult.recordset.map((r) => r.Name);
+    if (!allowedNames.includes(docTypeName)) {
+      return res.status(400).json({
+        error: 'Invalid document type. Must be one of: ' + allowedNames.join(', '),
+      });
+    }
 
     const filePath = `/uploads/${req.file.fieldname}/${req.file.filename}`;
 
     await pool
       .request()
       .input('employeeId', sql.Int, req.params.id)
-      .input('documentType', sql.NVarChar, documentType)
+      .input('documentType', sql.NVarChar, docTypeName)
       .input('fileName', sql.NVarChar, req.file.originalname)
       .input('filePath', sql.NVarChar, filePath)
       .input('fileSize', sql.Int, req.file.size)
@@ -273,7 +292,7 @@ router.post('/:id/documents', upload.single('document'), async (req, res) => {
     await pool
       .request()
       .input('employeeId', sql.Int, req.params.id)
-      .input('itemName', sql.NVarChar, documentType)
+      .input('itemName', sql.NVarChar, docTypeName)
       .query(`
         UPDATE OnboardingChecklist 
         SET IsCompleted = 1, CompletedAt = GETDATE()

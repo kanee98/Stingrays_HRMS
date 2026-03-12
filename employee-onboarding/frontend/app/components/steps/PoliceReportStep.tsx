@@ -8,9 +8,10 @@ interface PoliceReportStepProps {
   employeeId: number;
   onNext: () => void;
   onBack: () => void;
+  nextLabel?: string;
 }
 
-export function PoliceReportStep({ employeeId, onNext, onBack }: PoliceReportStepProps) {
+export function PoliceReportStep({ employeeId, onNext, onBack, nextLabel }: PoliceReportStepProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
@@ -139,7 +140,7 @@ export function PoliceReportStep({ employeeId, onNext, onBack }: PoliceReportSte
           disabled={loading}
           className="px-6 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition"
         >
-          {loading ? 'Saving...' : 'Next: Review & Contract'}
+          {loading ? 'Saving...' : (nextLabel ?? 'Next: Review & Contract')}
         </button>
       </div>
     </form>
