@@ -5,7 +5,10 @@ import { ProtectedRoute } from '../components/ProtectedRoute';
 import { DashboardLayout } from '../components/DashboardLayout';
 import Link from 'next/link';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  process.env.NEXT_PUBLIC_EMPLOYEE_API_URL ||
+  "/api-proxy";
 
 const PAGE_SIZES = [10, 25, 50, 100];
 

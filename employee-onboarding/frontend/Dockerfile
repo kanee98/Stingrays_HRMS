@@ -14,8 +14,15 @@ COPY --from=repo /repo/hrms-ui/shared/ ./shared/
 # Build args from docker-compose (PUBLIC_HOST) → baked into Next.js at build time
 ARG NEXT_PUBLIC_HRMS_URL=http://localhost:3000
 ARG NEXT_PUBLIC_EMPLOYEE_UI_URL=http://localhost:3001
+ARG NEXT_PUBLIC_API_URL=http://localhost:4000
+ARG NEXT_PUBLIC_EMPLOYEE_API_URL=http://localhost:4000
+# Next.js rewrites use this to proxy /api-proxy/* to the API (container name in Docker).
+ARG EMPLOYEE_API_INTERNAL_URL=http://localhost:4000
 ENV NEXT_PUBLIC_HRMS_URL=$NEXT_PUBLIC_HRMS_URL
 ENV NEXT_PUBLIC_EMPLOYEE_UI_URL=$NEXT_PUBLIC_EMPLOYEE_UI_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_EMPLOYEE_API_URL=$NEXT_PUBLIC_EMPLOYEE_API_URL
+ENV EMPLOYEE_API_INTERNAL_URL=$EMPLOYEE_API_INTERNAL_URL
 
 RUN npm run build
 EXPOSE 3000

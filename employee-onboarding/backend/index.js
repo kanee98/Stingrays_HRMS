@@ -30,6 +30,7 @@ app.get("/health", (req, res) => {
 const PORT = process.env.PORT || 4000;
 
 const { ensureProspectsColumns } = require("./migrations/ensure-prospects-columns");
+const { ensureEmployeesColumns } = require("./migrations/ensure-employees-columns");
 
 // Ensure Prospects table exists (create if DB was initialized before table was added)
 async function ensureProspectsTable() {
@@ -129,9 +130,43 @@ async function ensureOnboardingDocumentTypesTable() {
   }
 }
 
+async function ensureDepartmentsTable() {
+  try {
+    const pool = await getPool();
+    const check = await pool.request().query(
+      "SELECT OBJECT_ID('Departments', 'U') AS TableId"
+    );
+    if (check.recordset[0]?.TableId != null) return;
+    await pool.request().query(`
+      CREATE TABLE Departments (
+        Id INT IDENTITY(1,1) PRIMARY KEY,
+        Name NVARCHAR(200) NOT NULL,
+        SortOrder INT NOT NULL DEFAULT 0,
+        IsActive BIT NOT NULL DEFAULT 1,
+        CreatedAt DATETIME DEFAULT GETDATE(),
+        UpdatedAt DATETIME NULL
+      );
+    `);
+    await pool.request().query(`
+      INSERT INTO Departments (Name, SortOrder, IsActive) VALUES
+      ('Engineering', 1, 1),
+      ('Human Resources', 2, 1),
+      ('Finance', 3, 1),
+      ('Marketing', 4, 1),
+      ('Sales', 5, 1),
+      ('Operations', 6, 1);
+    `);
+    console.log("Departments table created and seeded");
+  } catch (err) {
+    console.error("Failed to ensure Departments table:", err.message);
+  }
+}
+
 ensureProspectsTable()
   .then(ensureOnboardingSettingsTable)
   .then(ensureOnboardingDocumentTypesTable)
+  .then(ensureDepartmentsTable)
+  .then(ensureEmployeesColumns)
   .then(() => {
     app.listen(PORT, () => {
       console.log(`Employee API running on port ${PORT}`);

@@ -4,7 +4,15 @@ import { useState, useEffect } from 'react';
 import { ProtectedRoute } from '../../components/ProtectedRoute';
 import { DashboardLayout } from '../../components/DashboardLayout';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+// Use same-origin proxy by default so the browser never hits port 4000 directly (avoids connection errors).
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  process.env.NEXT_PUBLIC_EMPLOYEE_API_URL ||
+  "/api-proxy";
+
+function isNetworkError(e: unknown): boolean {
+  return e instanceof TypeError && ((e as Error).message === 'Failed to fetch' || (e as Error).message?.includes('fetch'));
+}
 
 export default function OnboardingSettingsPage() {
   const [showGramasevaka, setShowGramasevaka] = useState(true);
@@ -18,12 +26,24 @@ export default function OnboardingSettingsPage() {
     (async () => {
       try {
         const res = await fetch(`${API_URL}/api/settings/onboarding`);
-        if (!res.ok) return;
+        if (!res.ok) {
+          setError('Failed to load settings. The server returned an error.');
+          setLoading(false);
+          return;
+        }
         const data = await res.json();
         setShowGramasevaka(data.showGramasevakaStep !== false);
         setShowPolice(data.showPoliceReportStep !== false);
-      } catch {
-        setError('Failed to load settings');
+      } catch (e) {
+        if (isNetworkError(e)) {
+          setError(
+            API_URL.startsWith("/")
+              ? "Cannot connect to the employee API. Ensure the employee-onboarding API is running (port 4000) and that both the frontend and API are running."
+              : `Cannot connect to the API at ${API_URL}. Make sure the employee-onboarding API is running and NEXT_PUBLIC_API_URL is set correctly.`
+          );
+        } else {
+          setError('Failed to load settings.');
+        }
       } finally {
         setLoading(false);
       }
@@ -46,8 +66,16 @@ export default function OnboardingSettingsPage() {
       });
       if (!res.ok) throw new Error('Failed to save');
       setMessage('Settings saved.');
-    } catch {
-      setError('Failed to save settings');
+    } catch (e) {
+      if (isNetworkError(e)) {
+        setError(
+          API_URL.startsWith("/")
+            ? "Cannot connect to the employee API. Ensure the employee-onboarding API is running (port 4000)."
+            : `Cannot connect to the API at ${API_URL}. Make sure the employee-onboarding API is running.`
+        );
+      } else {
+        setError('Failed to save settings.');
+      }
     } finally {
       setSaving(false);
     }

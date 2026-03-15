@@ -8,7 +8,10 @@ import { GramasevakaStep } from './steps/GramasevakaStep';
 import { PoliceReportStep } from './steps/PoliceReportStep';
 import { ReviewStep } from './steps/ReviewStep';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  process.env.NEXT_PUBLIC_EMPLOYEE_API_URL ||
+  "/api-proxy";
 
 type StepId = 'personal' | 'documents' | 'gramasevaka' | 'police' | 'review';
 
@@ -150,8 +153,9 @@ export function OnboardingForm() {
         });
 
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to save employee data');
+          const errorData = await response.json().catch(() => ({}));
+          const msg = errorData.detail || errorData.error || 'Failed to save employee data';
+          throw new Error(msg);
         }
 
         const result = await response.json();

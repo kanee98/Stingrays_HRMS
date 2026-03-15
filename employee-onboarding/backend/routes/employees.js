@@ -90,21 +90,25 @@ router.post('/', async (req, res) => {
       emergencyContactPhone,
     } = req.body;
 
+    // Normalize: empty string or undefined -> null for optional; ensure required strings
+    const str = (v) => (v == null || v === '' ? null : String(v));
+    const dobVal = dob == null || dob === '' ? null : (typeof dob === 'string' ? dob : dob);
+
     const result = await pool
       .request()
-      .input('firstName', sql.NVarChar, firstName)
-      .input('lastName', sql.NVarChar, lastName)
-      .input('email', sql.NVarChar, email)
-      .input('dob', sql.Date, dob)
-      .input('nic', sql.NVarChar, nic)
-      .input('phone', sql.NVarChar, phone)
-      .input('address', sql.NVarChar, address)
-      .input('city', sql.NVarChar, city)
-      .input('postalCode', sql.NVarChar, postalCode)
-      .input('position', sql.NVarChar, position)
-      .input('department', sql.NVarChar, department)
-      .input('emergencyContactName', sql.NVarChar, emergencyContactName)
-      .input('emergencyContactPhone', sql.NVarChar, emergencyContactPhone)
+      .input('firstName', sql.NVarChar, str(firstName) ?? '')
+      .input('lastName', sql.NVarChar, str(lastName) ?? '')
+      .input('email', sql.NVarChar, str(email) ?? '')
+      .input('dob', sql.Date, dobVal)
+      .input('nic', sql.NVarChar, str(nic))
+      .input('phone', sql.NVarChar, str(phone))
+      .input('address', sql.NVarChar, str(address))
+      .input('city', sql.NVarChar, str(city))
+      .input('postalCode', sql.NVarChar, str(postalCode))
+      .input('position', sql.NVarChar, str(position))
+      .input('department', sql.NVarChar, str(department))
+      .input('emergencyContactName', sql.NVarChar, str(emergencyContactName))
+      .input('emergencyContactPhone', sql.NVarChar, str(emergencyContactPhone))
       .query(`
         INSERT INTO Employees (
           FirstName, LastName, Email, DOB, NIC, Phone, Address, City, PostalCode,
@@ -151,7 +155,8 @@ router.post('/', async (req, res) => {
     res.status(201).json({ id: employeeId, message: 'Employee created successfully' });
   } catch (error) {
     console.error('Error creating employee:', error);
-    res.status(500).json({ error: 'Failed to create employee' });
+    const message = error.message || 'Failed to create employee';
+    res.status(500).json({ error: 'Failed to create employee', detail: message });
   }
 });
 

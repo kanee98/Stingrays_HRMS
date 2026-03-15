@@ -13,33 +13,29 @@ function isNetworkError(e: unknown): boolean {
   return e instanceof TypeError && (e.message === 'Failed to fetch' || (e as Error).message?.includes('fetch'));
 }
 
-interface DocumentType {
+interface Department {
   Id: number;
   Name: string;
-  IsRequired: boolean;
   SortOrder: number;
   IsActive: boolean;
-  Description?: string | null;
   CreatedAt?: string;
   UpdatedAt?: string | null;
 }
 
-export default function DocumentTypesSettingsPage() {
-  const [list, setList] = useState<DocumentType[]>([]);
+export default function DepartmentsSettingsPage() {
+  const [list, setList] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [newName, setNewName] = useState('');
-  const [newRequired, setNewRequired] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState('');
-  const [editRequired, setEditRequired] = useState(false);
 
   const fetchList = async () => {
     try {
       setError('');
-      const res = await fetch(`${API_URL}/api/settings/document-types/all`);
-      if (!res.ok) throw new Error('Failed to load document types');
+      const res = await fetch(`${API_URL}/api/settings/departments/all`);
+      if (!res.ok) throw new Error('Failed to load departments');
       const data = await res.json();
       setList(Array.isArray(data) ? data : []);
     } catch (e) {
@@ -50,7 +46,7 @@ export default function DocumentTypesSettingsPage() {
             : `Cannot connect to the API at ${API_URL}. Make sure the employee-onboarding API is running and NEXT_PUBLIC_API_URL is set correctly.`
         );
       } else {
-        setError(e instanceof Error ? e.message : 'Failed to load document types.');
+        setError(e instanceof Error ? e.message : 'Failed to load departments.');
       }
     } finally {
       setLoading(false);
@@ -67,17 +63,16 @@ export default function DocumentTypesSettingsPage() {
     setSaving(true);
     setError('');
     try {
-      const res = await fetch(`${API_URL}/api/settings/document-types`, {
+      const res = await fetch(`${API_URL}/api/settings/departments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newName.trim(), isRequired: newRequired, sortOrder: list.length }),
+        body: JSON.stringify({ name: newName.trim(), sortOrder: list.length }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || 'Failed to create');
       }
       setNewName('');
-      setNewRequired(true);
       await fetchList();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to create');
@@ -86,16 +81,14 @@ export default function DocumentTypesSettingsPage() {
     }
   };
 
-  const startEdit = (row: DocumentType) => {
+  const startEdit = (row: Department) => {
     setEditingId(row.Id);
     setEditName(row.Name);
-    setEditRequired(!!row.IsRequired);
   };
 
   const cancelEdit = () => {
     setEditingId(null);
     setEditName('');
-    setEditRequired(false);
   };
 
   const handleUpdate = async (e: React.FormEvent) => {
@@ -104,10 +97,10 @@ export default function DocumentTypesSettingsPage() {
     setSaving(true);
     setError('');
     try {
-      const res = await fetch(`${API_URL}/api/settings/document-types/${editingId}`, {
+      const res = await fetch(`${API_URL}/api/settings/departments/${editingId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: editName.trim(), isRequired: editRequired }),
+        body: JSON.stringify({ name: editName.trim() }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -123,11 +116,11 @@ export default function DocumentTypesSettingsPage() {
   };
 
   const handleDeactivate = async (id: number) => {
-    if (!confirm('Deactivate this document type? It will no longer appear in new onboarding checklists.')) return;
+    if (!confirm('Deactivate this department? It will no longer appear in the onboarding dropdown.')) return;
     setSaving(true);
     setError('');
     try {
-      const res = await fetch(`${API_URL}/api/settings/document-types/${id}`, { method: 'DELETE' });
+      const res = await fetch(`${API_URL}/api/settings/departments/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to deactivate');
       await fetchList();
     } catch (e) {
@@ -141,9 +134,9 @@ export default function DocumentTypesSettingsPage() {
     <ProtectedRoute>
       <DashboardLayout>
         <div className="p-6 lg:p-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Onboarding document types</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Departments</h1>
           <p className="text-gray-600 text-sm mb-6">
-            Configure which documents new employees must upload during onboarding. Only active types are used.
+            Configure departments for employee onboarding. Only active departments appear in the Personal Information step.
           </p>
 
           {error && (
@@ -154,24 +147,15 @@ export default function DocumentTypesSettingsPage() {
 
           <form onSubmit={handleCreate} className="mb-8 p-4 bg-gray-50 rounded-lg flex flex-wrap items-end gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">New document type</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">New department</label>
               <input
                 type="text"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
-                placeholder="e.g. Passport Copy"
+                placeholder="e.g. Customer Support"
                 className="border border-gray-300 rounded-lg px-3 py-2 w-56"
               />
             </div>
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={newRequired}
-                onChange={(e) => setNewRequired(e.target.checked)}
-                className="rounded border-gray-300"
-              />
-              <span className="text-sm text-gray-700">Required</span>
-            </label>
             <button
               type="submit"
               disabled={saving || !newName.trim()}
@@ -184,14 +168,13 @@ export default function DocumentTypesSettingsPage() {
           {loading ? (
             <p className="text-gray-500">Loading...</p>
           ) : list.length === 0 ? (
-            <p className="text-gray-500">No document types yet. Add one above.</p>
+            <p className="text-gray-500">No departments yet. Add one above.</p>
           ) : (
             <div className="border border-gray-200 rounded-lg overflow-hidden">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Required</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
@@ -210,18 +193,6 @@ export default function DocumentTypesSettingsPage() {
                           />
                         ) : (
                           <span className="font-medium text-gray-900">{row.Name}</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        {editingId === row.Id ? (
-                          <input
-                            type="checkbox"
-                            checked={editRequired}
-                            onChange={(e) => setEditRequired(e.target.checked)}
-                            className="rounded border-gray-300"
-                          />
-                        ) : (
-                          row.IsRequired ? 'Yes' : 'No'
                         )}
                       </td>
                       <td className="px-4 py-3 text-gray-600">{row.SortOrder}</td>

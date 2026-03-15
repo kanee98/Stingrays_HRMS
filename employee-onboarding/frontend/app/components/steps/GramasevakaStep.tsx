@@ -2,7 +2,10 @@
 
 import { useState, useRef } from 'react';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  process.env.NEXT_PUBLIC_EMPLOYEE_API_URL ||
+  "/api-proxy";
 
 interface GramasevakaStepProps {
   employeeId: number;
