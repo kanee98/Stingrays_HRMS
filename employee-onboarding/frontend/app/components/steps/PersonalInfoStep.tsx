@@ -1,6 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  process.env.NEXT_PUBLIC_EMPLOYEE_API_URL ||
+  "/api-proxy";
 
 interface PersonalInfoStepProps {
   data: any;
@@ -8,8 +13,28 @@ interface PersonalInfoStepProps {
   loading: boolean;
 }
 
+interface DepartmentOption {
+  Id: number;
+  Name: string;
+}
+
 export function PersonalInfoStep({ data, onSubmit, loading }: PersonalInfoStepProps) {
   const [formData, setFormData] = useState(data);
+  const [departments, setDepartments] = useState<DepartmentOption[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/settings/departments`);
+        if (res.ok) {
+          const list = await res.json();
+          setDepartments(Array.isArray(list) ? list : []);
+        }
+      } catch {
+        // Keep empty list; dropdown will have no options until API is available
+      }
+    })();
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({
@@ -180,12 +205,11 @@ export function PersonalInfoStep({ data, onSubmit, loading }: PersonalInfoStepPr
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
           >
             <option value="">Select Department</option>
-            <option value="Engineering">Engineering</option>
-            <option value="HR">Human Resources</option>
-            <option value="Finance">Finance</option>
-            <option value="Marketing">Marketing</option>
-            <option value="Sales">Sales</option>
-            <option value="Operations">Operations</option>
+            {departments.map((d) => (
+              <option key={d.Id} value={d.Name}>
+                {d.Name}
+              </option>
+            ))}
           </select>
         </div>
 

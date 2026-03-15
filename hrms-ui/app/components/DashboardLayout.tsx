@@ -4,14 +4,13 @@ import { AppLayout } from '@shared/components/AppLayout';
 import { useAuth } from '../contexts/AuthContext';
 import { hrmsSidebarItems } from '../config/sidebarItems';
 
-const EMPLOYEE_UI_URL = process.env.NEXT_PUBLIC_EMPLOYEE_UI_URL || 'http://localhost:3001';
-
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
 
   const onLogout = () => {
     logout();
-    window.location.href = `${EMPLOYEE_UI_URL}?logout=1`;
+    // Run logout chain so 3001 and 3010 clear their session too
+    window.location.href = '/?logout=1';
   };
 
   return (

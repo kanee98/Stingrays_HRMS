@@ -5,8 +5,15 @@ import { AppLayout } from '@shared/components/AppLayout';
 import { useAuth } from '../contexts/AuthContext';
 import { payrollSidebarItems } from '../config/sidebarItems';
 
-const HRMS_URL = process.env.NEXT_PUBLIC_HRMS_URL || 'http://localhost:3000';
-const PAYROLL_URL = process.env.NEXT_PUBLIC_PAYROLL_URL || 'http://localhost:3010';
+/** HRMS URL: use hrms subdomain when on subdomain, else same host:3000 */
+function getHrmsUrl(): string {
+  if (typeof window === 'undefined') return 'http://localhost:3000';
+  if (window.location.hostname !== 'localhost') {
+    const parts = window.location.hostname.split('.');
+    if (parts.length >= 2) return `${window.location.protocol}//hrms.${parts.slice(-2).join('.')}`;
+  }
+  return `${window.location.protocol}//${window.location.hostname}:3000`;
+}
 
 /**
  * Payroll microservice layout: uniform AppLayout from hrms-ui shared.
@@ -17,20 +24,17 @@ export function PayrollLayout({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
 
   const onLogout = () => {
-    try {
-      localStorage.removeItem('auth_token');
-      localStorage.removeItem('auth_user');
-      document.cookie = 'auth_token=; path=/; max-age=0';
-      window.location.href = `${HRMS_URL}?logout=1`;
-    } catch {
-      window.location.href = `${HRMS_URL}?logout=1`;
-    }
+    // Clear storage and redirect immediately — do NOT call logout() or setState so nothing re-renders before navigate
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('auth_user');
+    document.cookie = 'auth_token=; path=/; max-age=0';
+    window.location.replace(`${window.location.origin}/?logout=1`);
   };
 
   useEffect(() => {
     if (isLoading) return;
     if (!user) {
-      window.location.href = `${HRMS_URL}/login?returnUrl=${encodeURIComponent(PAYROLL_URL)}`;
+      window.location.href = `${getHrmsUrl()}/login?returnUrl=${encodeURIComponent(window.location.origin)}`;
     }
   }, [user, isLoading]);
 

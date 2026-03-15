@@ -17,8 +17,31 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const HRMS_URL = process.env.NEXT_PUBLIC_HRMS_URL || 'http://localhost:3000';
-const PAYROLL_URL = process.env.NEXT_PUBLIC_PAYROLL_URL || 'http://localhost:3010';
+/** Same host + port for localhost; subdomain URL (no port) when on subdomain */
+function appUrl(port: number) {
+  if (typeof window === 'undefined') return `http://localhost:${port}`;
+  return `${window.location.protocol}//${window.location.hostname}:${port}`;
+}
+
+function getBaseDomain(): string | null {
+  if (typeof window === 'undefined' || window.location.hostname === 'localhost') return null;
+  const parts = window.location.hostname.split('.');
+  return parts.length >= 2 ? parts.slice(-2).join('.') : null;
+}
+
+/** HRMS URL for logout chain */
+function getHrmsUrl(): string {
+  const base = getBaseDomain();
+  if (base) return `${typeof window !== 'undefined' ? window.location.protocol : 'https:'}//hrms.${base}`;
+  return appUrl(3000);
+}
+
+/** Payroll URL for logout chain */
+function getPayrollUrl(): string {
+  const base = getBaseDomain();
+  if (base) return `${typeof window !== 'undefined' ? window.location.protocol : 'https:'}//payroll.${base}`;
+  return appUrl(3010);
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -26,6 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let skipSetLoadingFalse = false;
     try {
       if (typeof window === 'undefined') {
         setIsLoading(false);
@@ -34,12 +58,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const params = new URLSearchParams(window.location.search);
       if (params.get('logout') === '1') {
+        // Clear storage and redirect only — do NOT setState so ProtectedRoute never re-renders with user=null
         localStorage.removeItem('auth_token');
         localStorage.removeItem('auth_user');
         document.cookie = 'auth_token=; path=/; max-age=0';
-        window.history.replaceState(null, '', window.location.pathname);
-        // Logout chain: Employee → Payroll → HRMS login
-        window.location.href = `${PAYROLL_URL}?logout=1`;
+        skipSetLoadingFalse = true;
+        // chain=1 means we came from 3010 (user logged out from Payroll) → go to 3000 to finish chain
+        if (params.get('chain') === '1') {
+          window.location.replace(`${getHrmsUrl()}?logout=1&chain=1`);
+        } else {
+          // User logged out from 3001 → go to 3010 next
+          window.location.replace(`${getPayrollUrl()}?logout=1`);
+        }
         return;
       }
 
@@ -77,7 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
     } finally {
-      setIsLoading(false);
+      if (!skipSetLoadingFalse) setIsLoading(false);
     }
   }, []);
 

@@ -3,7 +3,14 @@
 import { useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
-const HRMS_URL = process.env.NEXT_PUBLIC_HRMS_URL || 'http://localhost:3000';
+/** HRMS login URL: use hrms subdomain when on subdomain, else env or localhost */
+function getHrmsUrl(): string {
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    const parts = window.location.hostname.split('.');
+    if (parts.length >= 2) return `${window.location.protocol}//hrms.${parts.slice(-2).join('.')}`;
+  }
+  return process.env.NEXT_PUBLIC_HRMS_URL || 'http://localhost:3000';
+}
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
@@ -13,7 +20,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
       const returnUrl = encodeURIComponent(
         typeof window !== 'undefined' ? window.location.origin : ''
       );
-      window.location.href = `${HRMS_URL}/login?returnUrl=${returnUrl}`;
+      window.location.href = `${getHrmsUrl()}/login?returnUrl=${returnUrl}`;
     }
   }, [user, isLoading]);
 

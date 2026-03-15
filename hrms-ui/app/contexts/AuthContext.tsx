@@ -17,8 +17,28 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const AUTH_SERVICE_URL = process.env.NEXT_PUBLIC_AUTH_SERVICE_URL || 'http://localhost:4001';
-const EMPLOYEE_UI_URL = process.env.NEXT_PUBLIC_EMPLOYEE_UI_URL || 'http://localhost:3001';
+/** Auth API URL: use subdomain (auth.DOMAIN) when on subdomain, else env or localhost */
+function getAuthServiceUrl(): string {
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
+    const parts = window.location.hostname.split('.');
+    if (parts.length >= 2) return `${window.location.protocol}//auth.${parts.slice(-2).join('.')}`;
+  }
+  return process.env.NEXT_PUBLIC_AUTH_SERVICE_URL || 'http://localhost:4001';
+}
+
+/** Same host + port for localhost; subdomain URL (no port) when on subdomain */
+function appUrl(port: number) {
+  if (typeof window === 'undefined') return `http://localhost:${port}`;
+  return `${window.location.protocol}//${window.location.hostname}:${port}`;
+}
+
+/** Employee app URL for logout chain: subdomain (employee.DOMAIN) or same host:3001 */
+function getEmployeeUrl(): string {
+  if (typeof window === 'undefined') return 'http://localhost:3001';
+  const parts = window.location.hostname.split('.');
+  if (parts.length >= 2) return `${window.location.protocol}//employee.${parts.slice(-2).join('.')}`;
+  return appUrl(3001);
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -31,17 +51,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsLoading(false);
         return;
       }
-      // Logout chain: clear this app, then pass ?logout=1 to next app so all services clear session
       const params = new URLSearchParams(window.location.search);
       if (params.get('logout') === '1') {
-        setToken(null);
-        setUser(null);
         localStorage.removeItem('auth_token');
         localStorage.removeItem('auth_user');
         document.cookie = 'auth_token=; path=/; max-age=0';
-        window.history.replaceState(null, '', window.location.pathname);
-        // Chain: HRMS → Employee → Payroll → HRMS login
-        window.location.href = `${EMPLOYEE_UI_URL}?logout=1`;
+        // chain=1 means we arrived from 3010 in the chain → end at login
+        if (params.get('chain') === '1') {
+          window.location.replace('/login');
+          return;
+        }
+        // User clicked logout on 3000: start chain 3000 → 3001 → 3010 → 3000/login
+        window.location.replace(`${getEmployeeUrl()}?logout=1`);
         return;
       }
       const storedToken = localStorage.getItem('auth_token');
@@ -61,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    const response = await fetch(`${AUTH_SERVICE_URL}/api/auth/login`, {
+    const response = await fetch(`${getAuthServiceUrl()}/api/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
