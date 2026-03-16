@@ -1,14 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getEmployeeApiUrl } from '@shared/lib/appUrls';
 import { ProtectedRoute } from '../../components/ProtectedRoute';
 import { DashboardLayout } from '../../components/DashboardLayout';
 
-// Use same-origin proxy by default so the browser never hits port 4000 directly (avoids connection errors).
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  process.env.NEXT_PUBLIC_EMPLOYEE_API_URL ||
-  "/api-proxy";
+const API_URL = getEmployeeApiUrl();
 
 function isNetworkError(e: unknown): boolean {
   return e instanceof TypeError && ((e as Error).message === 'Failed to fetch' || (e as Error).message?.includes('fetch'));

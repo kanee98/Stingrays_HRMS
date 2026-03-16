@@ -302,3 +302,5 @@ router.delete('/departments/:id', async (req, res) => {
     res.status(500).json({ error: 'Failed to deactivate department' });
   }
 });
+
+module.exports = router;

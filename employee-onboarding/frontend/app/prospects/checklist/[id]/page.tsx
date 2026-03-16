@@ -1,15 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { getEmployeeApiUrl } from '@shared/lib/appUrls';
 import { useParams, useRouter } from 'next/navigation';
 import { ProtectedRoute } from '../../../components/ProtectedRoute';
 import { DashboardLayout } from '../../../components/DashboardLayout';
 import Link from 'next/link';
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  process.env.NEXT_PUBLIC_EMPLOYEE_API_URL ||
-  "/api-proxy";
+const API_URL = getEmployeeApiUrl();
 
 const INTERVIEW_STATUSES = [
   { value: '', label: '—' },

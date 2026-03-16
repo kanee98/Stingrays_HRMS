@@ -1,24 +1,24 @@
 import { Request, Response, NextFunction } from "express";
 import { verifyToken } from "../utils/paseto";
+import { clearSessionCookie, getSessionTokenFromRequest } from "../utils/sessionCookies";
 
 export const authenticate = async (
     req: Request,
     res: Response,
     next: NextFunction
 ) => {
-    const authHeader = req.headers.authorization;
+    const token = getSessionTokenFromRequest(req);
 
-    if (!authHeader) {
+    if (!token) {
         return res.status(401).json({ message: "No token provided" });
     }
-
-    const token = authHeader.split(" ")[1];
 
     try {
         const decoded = await verifyToken(token);
         (req as any).user = decoded;
         next();
     } catch {
+        clearSessionCookie(req, res);
         return res.status(401).json({ message: "Invalid token" });
     }
 };

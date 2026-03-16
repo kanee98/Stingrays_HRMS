@@ -1,108 +1,83 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
-
-interface User {
-  email: string;
-  role: string;
-}
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef, type ReactNode } from 'react';
+import { getSession, logoutSession, type AuthUser } from '@shared/lib/authClient';
 
 interface AuthContextType {
-  user: User | null;
-  token: string | null;
-  logout: () => void;
+  user: AuthUser | null;
+  logout: () => Promise<void>;
+  refreshSession: (options?: { silent?: boolean }) => Promise<AuthUser | null>;
   isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-/** Employee app URL for logout chain: subdomain (employee.DOMAIN) or same host:3001 */
-function getEmployeeUrl(): string {
-  if (typeof window === 'undefined') return 'http://localhost:3001';
-  const parts = window.location.hostname.split('.');
-  if (parts.length >= 2) return `${window.location.protocol}//employee.${parts.slice(-2).join('.')}`;
-  return `${window.location.protocol}//${window.location.hostname}:3001`;
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const isMountedRef = useRef(false);
 
-  useEffect(() => {
-    let skipSetLoadingFalse = false;
+  const refreshSession = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
+    if (!silent && isMountedRef.current) {
+      setIsLoading(true);
+    }
+
     try {
-      if (typeof window === 'undefined') {
-        setIsLoading(false);
-        return;
+      const nextUser = await getSession();
+      if (isMountedRef.current) {
+        setUser(nextUser);
       }
-
-      const params = new URLSearchParams(window.location.search);
-      if (params.get('logout') === '1') {
-        // Clear storage and redirect only — do NOT setState so PayrollLayout never re-renders with user=null
-        // Chain from 3010: go to 3001 first so it gets cleared, then 3001 → 3000 → login
-        localStorage.removeItem('auth_token');
-        localStorage.removeItem('auth_user');
-        document.cookie = 'auth_token=; path=/; max-age=0';
-        skipSetLoadingFalse = true;
-        window.location.replace(`${getEmployeeUrl()}?logout=1&chain=1`);
-        return;
+      return nextUser;
+    } catch {
+      if (isMountedRef.current) {
+        setUser(null);
       }
-
-      // 2) SSO: after HRMS login redirect, token and user come in URL hash
-      if (window.location.hash) {
-        const hash = window.location.hash.slice(1);
-        const hashParams = new URLSearchParams(hash);
-        const tokenFromUrl = hashParams.get('token');
-        const userFromUrl = hashParams.get('user');
-        if (tokenFromUrl && userFromUrl) {
-          try {
-            const userObj = JSON.parse(decodeURIComponent(userFromUrl));
-            setToken(tokenFromUrl);
-            setUser(userObj);
-            localStorage.setItem('auth_token', tokenFromUrl);
-            localStorage.setItem('auth_user', decodeURIComponent(userFromUrl));
-            document.cookie = `auth_token=${tokenFromUrl}; path=/; max-age=28800`;
-            window.history.replaceState(null, '', window.location.pathname + window.location.search);
-          } catch {
-            // invalid hash, fall through to localStorage check
-          }
-          setIsLoading(false);
-          return;
-        }
-      }
-
-      // 3) Already logged in: read from localStorage (same keys as HRMS / Employee onboarding)
-      const storedToken = localStorage.getItem('auth_token');
-      const storedUser = localStorage.getItem('auth_user');
-      if (storedToken && storedUser) {
-        try {
-          setToken(storedToken);
-          setUser(JSON.parse(storedUser));
-          document.cookie = `auth_token=${storedToken}; path=/; max-age=28800`;
-        } catch {
-          setUser(null);
-          setToken(null);
-        }
-      }
+      return null;
     } finally {
-      if (!skipSetLoadingFalse) setIsLoading(false);
+      if (!silent && isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
   }, []);
 
-  const logout = useCallback(() => {
-    setToken(null);
-    setUser(null);
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('auth_user');
-    document.cookie = 'auth_token=; path=/; max-age=0';
-    // Stay on this app (3010)
-    window.location.href = `${window.location.origin}/`;
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      setIsLoading(false);
+      return;
+    }
+
+    isMountedRef.current = true;
+    void refreshSession();
+
+    const revalidateSession = () => {
+      if (document.visibilityState !== 'hidden') {
+        void refreshSession({ silent: true });
+      }
+    };
+
+    window.addEventListener('focus', revalidateSession);
+    document.addEventListener('visibilitychange', revalidateSession);
+
+    return () => {
+      isMountedRef.current = false;
+      window.removeEventListener('focus', revalidateSession);
+      document.removeEventListener('visibilitychange', revalidateSession);
+    };
+  }, [refreshSession]);
+
+  const logout = useCallback(async () => {
+    try {
+      await logoutSession();
+    } finally {
+      if (isMountedRef.current) {
+        setUser(null);
+      }
+    }
   }, []);
 
   const value = useMemo(
-    () => ({ user, token, logout, isLoading }),
-    [user, token, logout, isLoading]
+    () => ({ user, logout, refreshSession, isLoading }),
+    [user, logout, refreshSession, isLoading]
   );
 
   return (

@@ -3,8 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "prepare-shared": "node ../../scripts/prepare-shared.js",
+    "prepare-shared": "node ./scripts/prepare-shared.js",
     "predev": "npm run prepare-shared",
+    "prebuild": "npm run prepare-shared",
+    "prelint": "npm run prepare-shared",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

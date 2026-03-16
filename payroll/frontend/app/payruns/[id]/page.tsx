@@ -3,8 +3,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { getPayrollApiUrl } from '@shared/lib/appUrls';
 
-const API_URL = process.env.NEXT_PUBLIC_PAYROLL_API_URL || 'http://localhost:4010';
+const API_URL = getPayrollApiUrl();
 
 interface Payslip {
   Id: number;

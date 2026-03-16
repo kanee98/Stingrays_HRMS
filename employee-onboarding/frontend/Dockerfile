@@ -1,4 +1,4 @@
-# Stage 1: load full repo context (context must be repo root)
+# Stage 1: load full repo context
 FROM alpine AS repo
 WORKDIR /repo
 COPY . .
@@ -11,17 +11,23 @@ RUN npm install --legacy-peer-deps
 COPY --from=repo /repo/employee-onboarding/frontend/ ./
 COPY --from=repo /repo/hrms-ui/shared/ ./shared/
 
-# Build args from docker-compose (PUBLIC_HOST) → baked into Next.js at build time
-ARG NEXT_PUBLIC_HRMS_URL=http://localhost:3000
+ARG NEXT_PUBLIC_PORTAL_URL=http://localhost:3000
+ARG NEXT_PUBLIC_HRMS_URL=http://localhost:3002
 ARG NEXT_PUBLIC_EMPLOYEE_UI_URL=http://localhost:3001
 ARG NEXT_PUBLIC_API_URL=http://localhost:4000
 ARG NEXT_PUBLIC_EMPLOYEE_API_URL=http://localhost:4000
-# Next.js rewrites use this to proxy /api-proxy/* to the API (container name in Docker).
+ARG NEXT_PUBLIC_PAYROLL_URL=http://localhost:3010
+ARG NEXT_PUBLIC_SUPER_ADMIN_API_URL=http://localhost:4020
+ARG NEXT_PUBLIC_DEFAULT_CLIENT_KEY=stingrays
 ARG EMPLOYEE_API_INTERNAL_URL=http://localhost:4000
+ENV NEXT_PUBLIC_PORTAL_URL=$NEXT_PUBLIC_PORTAL_URL
 ENV NEXT_PUBLIC_HRMS_URL=$NEXT_PUBLIC_HRMS_URL
 ENV NEXT_PUBLIC_EMPLOYEE_UI_URL=$NEXT_PUBLIC_EMPLOYEE_UI_URL
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_EMPLOYEE_API_URL=$NEXT_PUBLIC_EMPLOYEE_API_URL
+ENV NEXT_PUBLIC_PAYROLL_URL=$NEXT_PUBLIC_PAYROLL_URL
+ENV NEXT_PUBLIC_SUPER_ADMIN_API_URL=$NEXT_PUBLIC_SUPER_ADMIN_API_URL
+ENV NEXT_PUBLIC_DEFAULT_CLIENT_KEY=$NEXT_PUBLIC_DEFAULT_CLIENT_KEY
 ENV EMPLOYEE_API_INTERNAL_URL=$EMPLOYEE_API_INTERNAL_URL
 
 RUN npm run build

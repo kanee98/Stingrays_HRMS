@@ -26,6 +26,9 @@ echo "Running onboarding schema script..."
 echo "Running payroll schema script..."
 /opt/mssql-tools18/bin/sqlcmd -S mssql -U sa -P 'Kanishka#9810' -i /scripts/payroll-schema.sql -C -l 30
 
+echo "Running super admin schema script..."
+/opt/mssql-tools18/bin/sqlcmd -S mssql -U sa -P 'Kanishka#9810' -i /scripts/super-admin-schema.sql -C -l 30
+
 EXIT_CODE=$?
 if [ $EXIT_CODE -eq 0 ]; then
     echo "=== Initialization complete! ==="

@@ -2,16 +2,14 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { getEmployeeApiUrl } from '@shared/lib/appUrls';
 import { PersonalInfoStep } from './steps/PersonalInfoStep';
 import { DocumentsStep } from './steps/DocumentsStep';
 import { GramasevakaStep } from './steps/GramasevakaStep';
 import { PoliceReportStep } from './steps/PoliceReportStep';
 import { ReviewStep } from './steps/ReviewStep';
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  process.env.NEXT_PUBLIC_EMPLOYEE_API_URL ||
-  "/api-proxy";
+const API_URL = getEmployeeApiUrl();
 
 type StepId = 'personal' | 'documents' | 'gramasevaka' | 'police' | 'review';
 

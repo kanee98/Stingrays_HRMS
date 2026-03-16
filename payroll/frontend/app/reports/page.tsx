@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { getPayrollApiUrl } from '@shared/lib/appUrls';
 
-const API_URL = process.env.NEXT_PUBLIC_PAYROLL_API_URL || 'http://localhost:4010';
+const API_URL = getPayrollApiUrl();
 
 interface SummaryRow {
   Month: number;

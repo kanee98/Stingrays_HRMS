@@ -1,8 +1,10 @@
 import { Router } from "express";
 import { listUsers, listRoles, createUser, updateUser, deleteUser } from "../controllers/users.controller";
+import { authenticate } from "../middlewares/auth.middleware";
 
 const router = Router();
 
+router.use(authenticate);
 router.get("/", listUsers);
 router.get("/roles", listRoles);
 router.post("/", createUser);

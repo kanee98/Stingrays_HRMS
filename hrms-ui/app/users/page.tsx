@@ -4,15 +4,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { ProtectedRoute } from '../components/ProtectedRoute';
 import { DashboardLayout } from '../components/DashboardLayout';
 
-/** Auth API URL: use auth subdomain when on subdomain, else env or localhost */
-function getAuthServiceUrl(): string {
-  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
-    const parts = window.location.hostname.split('.');
-    if (parts.length >= 2) return `${window.location.protocol}//auth.${parts.slice(-2).join('.')}`;
-  }
-  return process.env.NEXT_PUBLIC_AUTH_SERVICE_URL || 'http://localhost:4001';
-}
-
 interface Role {
   Id: number;
   Name: string;
@@ -25,6 +16,8 @@ interface User {
   CreatedAt: string;
   roles: string[];
 }
+
+const USERS_API_BASE_PATH = '/api/users';
 
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
@@ -41,7 +34,7 @@ export default function UsersPage() {
   const fetchUsers = useCallback(async () => {
     try {
       setError(null);
-      const res = await fetch(`${getAuthServiceUrl()}/api/users`);
+      const res = await fetch(USERS_API_BASE_PATH, { credentials: 'include' });
       if (!res.ok) throw new Error('Failed to load users');
       const data = await res.json();
       setUsers(Array.isArray(data) ? data : []);
@@ -55,7 +48,7 @@ export default function UsersPage() {
 
   const fetchRoles = useCallback(async () => {
     try {
-      const res = await fetch(`${getAuthServiceUrl()}/api/users/roles`);
+      const res = await fetch(`${USERS_API_BASE_PATH}/roles`, { credentials: 'include' });
       if (!res.ok) return;
       const data = await res.json();
       setRoles(Array.isArray(data) ? data : []);
@@ -106,7 +99,8 @@ export default function UsersPage() {
           isActive: form.isActive,
         };
         if (form.password) body.password = form.password;
-        const res = await fetch(`${getAuthServiceUrl()}/api/users/${editingId}`, {
+        const res = await fetch(`${USERS_API_BASE_PATH}/${editingId}`, {
+          credentials: 'include',
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
@@ -115,7 +109,8 @@ export default function UsersPage() {
         if (!res.ok) throw new Error((data as { error?: string }).error || 'Update failed');
       } else {
         if (!form.password) throw new Error('Password is required for new users');
-        const res = await fetch(`${getAuthServiceUrl()}/api/users`, {
+        const res = await fetch(USERS_API_BASE_PATH, {
+          credentials: 'include',
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: form.email, password: form.password, roleIds: form.roleIds }),
@@ -139,7 +134,7 @@ export default function UsersPage() {
     if (deleteId == null) return;
     setDeleting(true);
     try {
-      const res = await fetch(`${getAuthServiceUrl()}/api/users/${deleteId}`, { method: 'DELETE' });
+      const res = await fetch(`${USERS_API_BASE_PATH}/${deleteId}`, { method: 'DELETE', credentials: 'include' });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error((data as { error?: string }).error || 'Delete failed');
       setDeleteId(null);

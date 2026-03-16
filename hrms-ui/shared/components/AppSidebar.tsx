@@ -21,7 +21,7 @@ export function AppSidebar({ items }: AppSidebarProps) {
   const pathname = usePathname();
 
   return (
-    <aside className="w-64 flex-shrink-0 bg-white border-r border-gray-200 min-h-[calc(100vh-4rem)]">
+    <aside className="min-h-[calc(100vh-4rem)] w-64 flex-shrink-0 border-r border-[var(--surface-border)] bg-[var(--surface)]">
       <nav className="p-4 space-y-1">
         {items.map((item) => {
           const isActive =
@@ -33,8 +33,8 @@ export function AppSidebar({ items }: AppSidebarProps) {
               href={item.href}
               className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg transition ${
                 isActive
-                  ? 'bg-indigo-50 text-indigo-700'
-                  : 'text-gray-700 hover:bg-gray-50 hover:text-indigo-600'
+                  ? 'bg-[var(--primary-muted)] text-[var(--primary)]'
+                  : 'text-[var(--muted-strong)] hover:bg-[var(--surface-muted)] hover:text-[var(--primary)]'
               }`}
             >
               <svg

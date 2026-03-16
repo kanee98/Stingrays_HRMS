@@ -1,11 +1,10 @@
 'use client';
 
+import { getEmployeeUrl } from '@shared/lib/appUrls';
 import { ProtectedRoute } from '../components/ProtectedRoute';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { useAuth } from '../contexts/AuthContext';
 import { Card } from '@shared/components/Card';
-
-const EMPLOYEE_UI_URL = process.env.NEXT_PUBLIC_EMPLOYEE_UI_URL || 'http://localhost:3001';
 
 function DashboardContent() {
   const { user } = useAuth();
@@ -97,7 +96,7 @@ function DashboardContent() {
         <h3 className="text-lg font-semibold text-[var(--foreground)] mb-4">Quick Actions</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <a
-            href={EMPLOYEE_UI_URL}
+            href={getEmployeeUrl()}
             className="flex items-center p-4 border border-[var(--surface-border)] rounded-lg hover:border-[var(--primary)] hover:bg-[var(--primary-muted)] transition"
           >
             <svg

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "./contexts/AuthContext";
+import { ThemeProvider } from "@shared/components/ThemeProvider";
+import { ThemeScript } from "@shared/components/ThemeScript";
 
 export const metadata: Metadata = {
   title: "HRMS Dashboard",
@@ -9,7 +11,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className="min-h-screen flex flex-col"
         style={{
@@ -17,11 +19,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif'
         }}
       >
-        <AuthProvider>
-          <div className="min-h-screen flex flex-col flex-1">
-            {children}
-          </div>
-        </AuthProvider>
+        <ThemeScript />
+        <ThemeProvider>
+          <AuthProvider>
+            <div className="min-h-screen flex flex-col flex-1">
+              {children}
+            </div>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   )

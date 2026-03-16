@@ -17,7 +17,7 @@ export interface AppLayoutProps {
   /** Optional: current user for topbar (from auth) */
   user?: AppNavbarUser | null;
   /** Optional: logout handler for topbar */
-  onLogout?: () => void;
+  onLogout?: () => void | Promise<void>;
   /** Whether to show the footer (default true) */
   showFooter?: boolean;
 }
@@ -35,14 +35,14 @@ export function AppLayout({
   showFooter = true,
 }: AppLayoutProps) {
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-[var(--background)] text-[var(--foreground)]">
       {/* Topbar - constant structure, same across all microservices */}
       <AppNavbar variant={variant} user={user} onLogout={onLogout} />
 
       {/* Sidebar + Body - sidebar takes props, body is dynamic per microservice */}
       <div className="flex flex-1">
         <AppSidebar items={sidebarItems} />
-        <main className="flex-1 overflow-auto min-h-[calc(100vh-4rem)] p-4 sm:p-6 lg:p-8">
+        <main className="flex-1 overflow-auto min-h-[calc(100vh-4rem)] bg-[var(--background)] p-4 sm:p-6 lg:p-8">
           {children}
         </main>
       </div>

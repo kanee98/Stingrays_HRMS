@@ -1,5 +1,6 @@
 # Force consistent line endings
 * text=auto eol=lf
+*.sh text eol=lf
 
 # Ensure Dockerfile is tracked with correct name (lowercase 'f').
 # If your system created DockerFile, run: scripts/fix-dockerfile-casing.ps1 (Windows) or scripts/fix-dockerfile-casing.sh (Linux/Mac)

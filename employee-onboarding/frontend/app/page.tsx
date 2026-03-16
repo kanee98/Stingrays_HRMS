@@ -1,18 +1,10 @@
 'use client';
 
+import { getHrmsAppUrl } from '@shared/services/platformUrls';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { DashboardLayout } from './components/DashboardLayout';
 import { useAuth } from './contexts/AuthContext';
 import Link from 'next/link';
-
-/** HRMS URL: use hrms subdomain when on subdomain, else env or localhost */
-function getHrmsUrl(): string {
-  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost') {
-    const parts = window.location.hostname.split('.');
-    if (parts.length >= 2) return `${window.location.protocol}//hrms.${parts.slice(-2).join('.')}`;
-  }
-  return process.env.NEXT_PUBLIC_HRMS_URL || 'http://localhost:3000';
-}
 
 function DashboardHome() {
   const { user } = useAuth();
@@ -112,7 +104,7 @@ function DashboardHome() {
             <span className="text-[var(--foreground)] font-medium">Document Templates</span>
           </Link>
           <a
-            href={getHrmsUrl()}
+            href={getHrmsAppUrl()}
             className="flex items-center p-4 border border-[var(--surface-border)] rounded-[var(--radius)] hover:border-[var(--primary)] hover:bg-[var(--primary-muted)] transition"
           >
             <svg className="w-5 h-5 text-[var(--primary)] mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -4,17 +4,40 @@
 @source "../shared/**/*.tsx";
 
 :root {
-  --background: #f8fafc;
+  --background: #f4f7fb;
   --foreground: #0f172a;
   --primary: #4f46e5;
   --primary-hover: #4338ca;
-  --primary-muted: #eef2ff;
+  --primary-muted: rgb(79 70 229 / 0.12);
   --surface: #ffffff;
-  --surface-border: #e2e8f0;
+  --surface-muted: #f8fafc;
+  --surface-subtle: #eef2ff;
+  --surface-border: #dbe4f0;
+  --surface-strong: #0f172a;
+  --surface-strong-foreground: #f8fafc;
   --muted: #64748b;
+  --muted-strong: #334155;
   --radius: 0.75rem;
-  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --shadow: 0 1px 2px rgb(15 23 42 / 0.08), 0 12px 32px -18px rgb(15 23 42 / 0.18);
+  --shadow-lg: 0 20px 48px -24px rgb(15 23 42 / 0.28);
+}
+
+html[data-theme='dark'] {
+  --background: #081120;
+  --foreground: #e5edf8;
+  --primary: #818cf8;
+  --primary-hover: #a5b4fc;
+  --primary-muted: rgb(129 140 248 / 0.18);
+  --surface: #0f1b2d;
+  --surface-muted: #132238;
+  --surface-subtle: #1a2a45;
+  --surface-border: #243552;
+  --surface-strong: #050b16;
+  --surface-strong-foreground: #e5edf8;
+  --muted: #90a3bc;
+  --muted-strong: #c6d2e3;
+  --shadow: 0 1px 2px rgb(2 6 23 / 0.3), 0 18px 40px -24px rgb(2 6 23 / 0.72);
+  --shadow-lg: 0 26px 54px -26px rgb(2 6 23 / 0.82);
 }
 
 @theme inline {
@@ -24,18 +47,101 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0f172a;
-    --foreground: #f1f5f9;
-    --surface: #1e293b;
-    --surface-border: #334155;
-    --primary-muted: #312e81;
-  }
+html {
+  background: var(--background);
+  color: var(--foreground);
+  color-scheme: light;
+}
+
+html[data-theme='dark'] {
+  color-scheme: dark;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
+}
+
+a,
+button,
+input,
+select,
+textarea {
+  transition: background-color 160ms ease, border-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+
+html[data-theme='dark'] input:not([type='checkbox']):not([type='radio']),
+html[data-theme='dark'] select,
+html[data-theme='dark'] textarea {
+  background: var(--surface);
+  border-color: var(--surface-border);
+  color: var(--foreground);
+}
+
+html[data-theme='dark'] input::placeholder,
+html[data-theme='dark'] textarea::placeholder {
+  color: var(--muted);
+}
+
+html[data-theme='dark'] .bg-white,
+html[data-theme='dark'] .bg-white\/90 {
+  background-color: var(--surface) !important;
+}
+
+html[data-theme='dark'] .bg-gray-50,
+html[data-theme='dark'] .bg-slate-50,
+html[data-theme='dark'] .bg-slate-100 {
+  background-color: var(--surface-muted) !important;
+}
+
+html[data-theme='dark'] .bg-gray-100,
+html[data-theme='dark'] .bg-gray-200 {
+  background-color: var(--surface-subtle) !important;
+}
+
+html[data-theme='dark'] .border-gray-200,
+html[data-theme='dark'] .border-gray-300,
+html[data-theme='dark'] .border-slate-200,
+html[data-theme='dark'] .border-slate-300,
+html[data-theme='dark'] .border-slate-200\/80 {
+  border-color: var(--surface-border) !important;
+}
+
+html[data-theme='dark'] .divide-gray-200 > :not([hidden]) ~ :not([hidden]),
+html[data-theme='dark'] .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--surface-border) !important;
+}
+
+html[data-theme='dark'] .text-gray-900,
+html[data-theme='dark'] .text-slate-900,
+html[data-theme='dark'] .text-slate-800 {
+  color: var(--foreground) !important;
+}
+
+html[data-theme='dark'] .text-gray-700,
+html[data-theme='dark'] .text-slate-700,
+html[data-theme='dark'] .text-gray-600,
+html[data-theme='dark'] .text-slate-600,
+html[data-theme='dark'] .text-gray-500,
+html[data-theme='dark'] .text-slate-500,
+html[data-theme='dark'] .text-gray-400,
+html[data-theme='dark'] .text-slate-400 {
+  color: var(--muted) !important;
+}
+
+html[data-theme='dark'] .hover\:bg-gray-50:hover,
+html[data-theme='dark'] .hover\:bg-slate-50:hover {
+  background-color: var(--surface-muted) !important;
+}
+
+html[data-theme='dark'] .hover\:bg-gray-100:hover,
+html[data-theme='dark'] .hover\:border-slate-300:hover,
+html[data-theme='dark'] .hover\:border-gray-300:hover {
+  background-color: var(--surface-subtle) !important;
+  border-color: var(--primary) !important;
+}
+
+html[data-theme='dark'] .backdrop-blur-sm {
+  background-color: rgb(15 27 45 / 0.92) !important;
 }

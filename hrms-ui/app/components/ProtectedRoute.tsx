@@ -1,25 +1,25 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
+import { getCurrentUrl } from '@shared/lib/appUrls';
+import { buildPortalLoginUrl } from '@shared/services/platformUrls';
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
-  const router = useRouter();
 
   useEffect(() => {
     if (!isLoading && !user) {
-      router.replace('/login');
+      window.location.replace(buildPortalLoginUrl(getCurrentUrl()));
     }
-  }, [user, isLoading, router]);
+  }, [user, isLoading]);
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-[var(--background)]">
         <div className="text-center">
           <svg
-            className="animate-spin h-12 w-12 text-indigo-600 mx-auto"
+            className="animate-spin h-12 w-12 text-[var(--primary)] mx-auto"
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
             viewBox="0 0 24 24"
@@ -38,7 +38,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
               d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
             ></path>
           </svg>
-          <p className="mt-4 text-gray-600">Loading...</p>
+          <p className="mt-4 text-[var(--muted)]">Loading...</p>
         </div>
       </div>
     );

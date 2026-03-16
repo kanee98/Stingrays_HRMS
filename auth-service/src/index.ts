@@ -8,7 +8,8 @@ import { ensureDbConnection } from "./config/db";
 dotenv.config();
 
 const app = express();
-app.use(cors());
+app.set("trust proxy", 1);
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 
 app.use("/api/auth", authRoutes);

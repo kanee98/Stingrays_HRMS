@@ -1,11 +1,9 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { getEmployeeApiUrl } from '@shared/lib/appUrls';
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  process.env.NEXT_PUBLIC_EMPLOYEE_API_URL ||
-  "/api-proxy";
+const API_URL = getEmployeeApiUrl();
 
 interface DocumentTypeRow {
   Id: number;

@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { getPayrollApiUrl } from '@shared/lib/appUrls';
 
-const API_URL = process.env.NEXT_PUBLIC_PAYROLL_API_URL || 'http://localhost:4010';
+const API_URL = getPayrollApiUrl();
 
 interface TaxBracket {
   Id: number;
@@ -95,7 +96,7 @@ function TaxBracketsSection({
   const [maxAmount, setMaxAmount] = useState(100000);
   const [ratePercent, setRatePercent] = useState(0);
   const [saving, setSaving] = useState(false);
-  const API_URL = process.env.NEXT_PUBLIC_PAYROLL_API_URL || 'http://localhost:4010';
+  const API_URL = getPayrollApiUrl();
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -229,7 +230,7 @@ function DeductionRulesSection({
   const [type, setType] = useState<'percentage' | 'fixed'>('fixed');
   const [defaultValue, setDefaultValue] = useState(0);
   const [saving, setSaving] = useState(false);
-  const API_URL = process.env.NEXT_PUBLIC_PAYROLL_API_URL || 'http://localhost:4010';
+  const API_URL = getPayrollApiUrl();
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -1,8 +1,12 @@
 # Getting Stingrays HRMS running on this machine
 
-Login will work only if **both** the database and the **auth service** are running. Use these steps so this machine matches the one where it worked.
+## Build note
 
-## 1. Start the database (first time or after reboot)
+If `docker compose build` fails on Docker Desktop with a BuildKit/Bake snapshot export error, keep `COMPOSE_BAKE=false` in the root `.env`. That forces Compose to use the non-Bake build path, which is more stable for this stack on Windows.
+
+Login for the user-facing apps works only if the database and `auth-service` are running. The Super Admin console additionally requires `super-admin-api`.
+
+## 1. Start the database
 
 From the project root:
 
@@ -10,51 +14,32 @@ From the project root:
 docker compose -f docker-compose.db.yml up -d
 ```
 
-Wait until the database is ready (about 1–2 minutes). Optional check:
+Wait until `stingrays-mssql` is healthy and `stingrays-mssql-init` exits successfully.
+
+## 2. Build and start the app stack
 
 ```bash
-docker compose -f docker-compose.db.yml ps
-```
-
-When `stingrays-mssql` is **healthy** and `stingrays-mssql-init` has **exited (0)**, the DB and schema are ready.
-
-## 2. Start the app stack (including auth service)
-
-```bash
+docker compose build
 docker compose up -d
 ```
 
-Or to build and start:
+## 3. Open the apps
 
-```bash
-docker compose build && docker compose up -d
-```
+- Portal: `http://localhost:3000`
+- Employee Onboarding: `http://localhost:3001`
+- HRMS: `http://localhost:3002`
+- Payroll: `http://localhost:3010`
+- Super Admin: `http://localhost:3020`
 
-## 3. Check that the auth service is running
+## 4. Sign in
 
-```bash
-docker compose ps
-```
+- User portal credentials: `admin@stingrays.com / Admin@123`
+- Super Admin credentials: `superadmin@stingrays.com / SuperAdmin@123`
 
-You should see `auth-service` with port **4001** and status **Up**.
+The portal at `http://localhost:3000` is now the default entry point. After sign-in, users choose which enabled system to enter. HRMS itself now runs on `http://localhost:3002`.
 
-Quick test that login can reach the auth service:
+## Notes
 
-- **PowerShell:** `Invoke-WebRequest -Uri http://localhost:4001 -UseBasicParsing | Select-Object StatusCode`
-- **Browser:** open `http://localhost:4001` (you may see a blank page or 404; that’s OK as long as it doesn’t say “can’t connect”)
-- **curl:** `curl -s -o /dev/null -w "%{http_code}" http://localhost:4001`
-
-## 4. Open the app and sign in
-
-- App: **http://localhost:3000**
-- Sign in with your admin account (e.g. after a password reset: `admin@stingrays.com` / `Admin@123`).
-
----
-
-**If you only run `docker compose up`** and never run `docker-compose.db.yml`, the database and `hrms-db` network won’t exist. The auth service needs that DB, so login will fail. Always start the DB stack first, then the app stack.
-
----
-
-### “Found orphan containers (stingrays-mssql…)” warning
-
-This is **expected** when you use two compose files. The database runs from `docker-compose.db.yml`, so when you run the main `docker compose up`, those DB containers are not in that file and Compose reports them as orphans. **Do not use `--remove-orphans`** or you will remove the database. You can ignore the warning.
+- The Super Admin API bootstraps its schema and default seed data on startup, so existing databases are upgraded when the service starts.
+- The database init stack also runs `init-sql/super-admin-schema.sql` for fresh environments.
+- Ignore the `Found orphan containers` warning when using both compose files. Do not use `--remove-orphans` or you may remove the database containers.
