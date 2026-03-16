@@ -21,7 +21,7 @@ export function AppSidebar({ items }: AppSidebarProps) {
   const pathname = usePathname();
 
   return (
-    <aside className="min-h-[calc(100vh-4rem)] w-64 flex-shrink-0 border-r border-[var(--surface-border)] bg-[var(--surface)]">
+    <aside className="w-64 flex-shrink-0 overflow-y-auto border-r border-[var(--surface-border)] bg-[var(--surface)]">
       <nav className="p-4 space-y-1">
         {items.map((item) => {
           const isActive =

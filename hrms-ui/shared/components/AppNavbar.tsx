@@ -16,25 +16,95 @@ export interface AppNavbarProps {
   onLogout?: () => void | Promise<void>;
 }
 
+type ModuleVariant = AppNavbarProps['variant'];
+
+interface ModuleMeta {
+  label: string;
+  eyebrow: string;
+  description: string;
+}
+
+interface ServiceNavItem {
+  key: string;
+  href: string;
+  label: string;
+  eyebrow: string;
+  description: string;
+  icon: string;
+  isActive: boolean;
+  isVisible: boolean;
+}
+
+const moduleMeta: Record<ModuleVariant, ModuleMeta> = {
+  hrms: {
+    label: 'HRMS',
+    eyebrow: 'Core operations',
+    description: 'People records, workforce policies, and day-to-day administration.',
+  },
+  employee: {
+    label: 'Employee Onboarding',
+    eyebrow: 'Talent transition',
+    description: 'Prospects, onboarding workflows, documents, and readiness tracking.',
+  },
+  payroll: {
+    label: 'Payroll',
+    eyebrow: 'Compensation',
+    description: 'Pay runs, deductions, compliance, and payroll reporting.',
+  },
+};
+
+function getUserInitials(user: AppNavbarUser | null): string {
+  if (!user?.email) {
+    return 'SR';
+  }
+
+  const [localPart] = user.email.split('@');
+  const tokens = localPart.split(/[._-]/).filter(Boolean);
+
+  if (tokens.length >= 2) {
+    return `${tokens[0][0] ?? ''}${tokens[1][0] ?? ''}`.toUpperCase();
+  }
+
+  return localPart.slice(0, 2).toUpperCase();
+}
+
+function NavIcon({ path }: { path: string }) {
+  return (
+    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d={path} />
+    </svg>
+  );
+}
+
 export function AppNavbar({ variant, user = null, onLogout }: AppNavbarProps) {
   const isHrms = variant === 'hrms';
   const isEmployee = variant === 'employee';
   const isPayroll = variant === 'payroll';
-  const activeClass = 'border-b-2 border-[var(--primary)] text-[var(--foreground)] hover:text-[var(--primary)]';
-  const inactiveClass = 'text-[var(--muted)] hover:text-[var(--primary)]';
-
   const { snapshot } = useClientAccess();
   const portalUrl = getPortalUrl();
   const HRMS_URL = getHrmsAppUrl();
   const EMPLOYEE_UI_URL = getEmployeeUrl();
   const PAYROLL_URL = getPayrollUrl();
-  const navItems = [
-    { key: 'portal', href: portalUrl, label: 'Portal', isActive: false, isVisible: true },
-    { key: 'hrms', href: HRMS_URL, label: 'HRMS', isActive: isHrms, isVisible: isServiceEnabled(snapshot, 'hrms') || snapshot == null },
+
+  const currentModule = moduleMeta[variant];
+  const serviceItems: ServiceNavItem[] = [
+    {
+      key: 'hrms',
+      href: HRMS_URL,
+      label: 'HRMS',
+      eyebrow: 'Operations',
+      description: 'Manage employees, attendance, leave, and core HR settings.',
+      icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
+      isActive: isHrms,
+      isVisible: isServiceEnabled(snapshot, 'hrms') || snapshot == null,
+    },
     {
       key: 'employee-onboarding',
       href: EMPLOYEE_UI_URL,
-      label: 'Employee Onboarding',
+      label: 'Onboarding',
+      eyebrow: 'Hiring',
+      description: 'Move candidates into structured onboarding workflows.',
+      icon: 'M9 12l2 2 4-4m5 2a9 9 0 11-18 0 9 9 0 0118 0z',
       isActive: isEmployee,
       isVisible: isServiceEnabled(snapshot, 'employee-onboarding') || snapshot == null,
     },
@@ -42,54 +112,130 @@ export function AppNavbar({ variant, user = null, onLogout }: AppNavbarProps) {
       key: 'payroll',
       href: PAYROLL_URL,
       label: 'Payroll',
+      eyebrow: 'Pay cycle',
+      description: 'Run payroll, manage deductions, and review outputs.',
+      icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
       isActive: isPayroll,
       isVisible: isServiceEnabled(snapshot, 'payroll') || snapshot == null,
     },
   ].filter((item) => item.isVisible);
+  const visibleModules = serviceItems.length;
 
   return (
     <header className="border-b border-[var(--surface-border)] bg-[var(--surface)] shadow-[var(--shadow)]">
       <div className="w-full px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16 min-h-16">
-          <div className="flex items-center flex-1 min-w-0">
-            <div className="flex-shrink-0">
-              <span className="text-2xl font-bold text-[var(--primary)]">Stingrays</span>
-            </div>
-            <nav className="ml-10 flex space-x-8 flex-shrink-0">
-              {navItems.map((item) => (
-                <a
-                  key={item.key}
-                  href={item.href}
-                  className={`px-3 py-2 text-sm font-medium whitespace-nowrap ${item.isActive ? activeClass : inactiveClass}`}
-                >
-                  {item.label}
-                </a>
-              ))}
-            </nav>
-          </div>
-          <div className="flex items-center gap-4 flex-shrink-0 ml-4">
-            <ThemeToggle />
-            {user?.email != null && (
-              <div className="flex items-center gap-2 text-sm text-[var(--muted-strong)] min-w-0 max-w-[240px] sm:max-w-[280px]">
-                <span className="font-medium truncate" title={user?.email ?? ''}>
-                  {user?.email}
-                </span>
-                <span className="rounded-full bg-[var(--primary-muted)] px-2 py-0.5 text-xs text-[var(--primary)] flex-shrink-0">
-                  {user?.role}
-                </span>
+        <div className="py-4">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-[var(--surface-strong)] text-sm font-semibold tracking-[0.3em] text-[var(--surface-strong-foreground)]">
+                  SR
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--muted)]">
+                    Stingrays Platform
+                  </p>
+                  <p className="truncate text-lg font-semibold text-[var(--foreground)]">
+                    Unified workforce operations
+                  </p>
+                </div>
               </div>
-            )}
-            {onLogout != null && (
-              <button
-                type="button"
-                onClick={() => {
-                  void onLogout();
-                }}
-                className="rounded-lg border border-[var(--surface-border)] px-4 py-2 text-sm font-medium text-[var(--muted-strong)] transition hover:border-[var(--primary)] hover:text-[var(--primary)] flex-shrink-0 whitespace-nowrap"
+
+              <div className="hidden h-10 w-px bg-[var(--surface-border)] sm:block" />
+
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">
+                  {currentModule.eyebrow}
+                </p>
+                <p className="text-sm font-semibold text-[var(--foreground)]">{currentModule.label}</p>
+                <p className="text-sm text-[var(--muted)]">{currentModule.description}</p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 xl:justify-end">
+              <div className="rounded-2xl border border-[var(--surface-border)] bg-[var(--surface-muted)] px-3 py-2 text-xs text-[var(--muted)]">
+                {visibleModules} active module{visibleModules === 1 ? '' : 's'}
+              </div>
+              <ThemeToggle />
+              {user?.email != null && (
+                <div className="flex max-w-full items-center gap-3 rounded-2xl border border-[var(--surface-border)] bg-[var(--surface-muted)] px-3 py-2">
+                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-[var(--primary-muted)] text-sm font-semibold text-[var(--primary)]">
+                    {getUserInitials(user)}
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-[var(--foreground)]" title={user.email}>
+                      {user.email}
+                    </p>
+                    <p className="text-xs text-[var(--muted)]">{user.role}</p>
+                  </div>
+                </div>
+              )}
+              {onLogout != null && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    void onLogout();
+                  }}
+                  className="rounded-xl border border-[var(--surface-border)] px-4 py-2.5 text-sm font-medium text-[var(--muted-strong)] transition hover:border-[var(--primary)] hover:bg-[var(--primary-muted)] hover:text-[var(--primary)]"
+                >
+                  Logout
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              <a
+                href={portalUrl}
+                className="inline-flex flex-shrink-0 items-center gap-2 rounded-2xl border border-[var(--surface-border)] bg-[var(--surface)] px-4 py-3 text-sm font-medium text-[var(--muted-strong)] transition hover:border-[var(--primary)] hover:text-[var(--primary)]"
               >
-                Logout
-              </button>
-            )}
+                <NavIcon path="M3 10.5l9-7 9 7M5 9.5V20h14V9.5M9 20v-6h6v6" />
+                <span>Portal Home</span>
+              </a>
+
+              <div className="min-w-0 flex-1 overflow-x-auto pb-1">
+                <nav className="flex min-w-max items-stretch gap-2 rounded-2xl border border-[var(--surface-border)] bg-[var(--surface-muted)] p-1">
+                  {serviceItems.map((item) => (
+                    <a
+                      key={item.key}
+                      href={item.href}
+                      title={item.description}
+                      aria-current={item.isActive ? 'page' : undefined}
+                      className={`group flex min-w-[11rem] items-center gap-3 rounded-xl px-3 py-3 text-left transition ${
+                        item.isActive
+                          ? 'bg-[var(--surface-strong)] text-[var(--surface-strong-foreground)] shadow-[var(--shadow)]'
+                          : 'text-[var(--muted-strong)] hover:bg-[var(--surface)] hover:text-[var(--foreground)]'
+                      }`}
+                    >
+                      <span
+                        className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border ${
+                          item.isActive
+                            ? 'border-white/10 bg-white/10 text-white'
+                            : 'border-[var(--surface-border)] bg-[var(--surface)] text-[var(--primary)] group-hover:border-[var(--primary)]'
+                        }`}
+                      >
+                        <NavIcon path={item.icon} />
+                      </span>
+                      <span className="min-w-0">
+                        <span
+                          className={`block text-[11px] font-semibold uppercase tracking-[0.2em] ${
+                            item.isActive ? 'text-white/70' : 'text-[var(--muted)]'
+                          }`}
+                        >
+                          {item.eyebrow}
+                        </span>
+                        <span className="block truncate text-sm font-semibold">{item.label}</span>
+                      </span>
+                    </a>
+                  ))}
+                </nav>
+              </div>
+            </div>
+
+            <p className="text-xs text-[var(--muted)] lg:max-w-[18rem] lg:text-right">
+              Switch modules without leaving your signed-in workspace.
+            </p>
           </div>
         </div>
       </div>

@@ -40,9 +40,9 @@ export function AppLayout({
       <AppNavbar variant={variant} user={user} onLogout={onLogout} />
 
       {/* Sidebar + Body - sidebar takes props, body is dynamic per microservice */}
-      <div className="flex flex-1">
+      <div className="flex flex-1 min-h-0">
         <AppSidebar items={sidebarItems} />
-        <main className="flex-1 overflow-auto min-h-[calc(100vh-4rem)] bg-[var(--background)] p-4 sm:p-6 lg:p-8">
+        <main className="min-w-0 flex-1 overflow-auto bg-[var(--background)] p-4 sm:p-6 lg:p-8">
           {children}
         </main>
       </div>
