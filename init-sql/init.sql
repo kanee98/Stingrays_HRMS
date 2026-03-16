@@ -66,6 +66,32 @@ BEGIN
 END
 GO
 
+IF OBJECT_ID('UserSessions', 'U') IS NULL
+BEGIN
+    CREATE TABLE UserSessions (
+        SessionId UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
+        UserId INT NOT NULL,
+        CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        LastSeenAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        ExpiresAt DATETIME2 NOT NULL,
+        RevokedAt DATETIME2 NULL,
+        RevokedReason NVARCHAR(100) NULL,
+        UserAgent NVARCHAR(512) NULL,
+        IpAddress NVARCHAR(64) NULL,
+        CONSTRAINT FK_UserSessions_Users FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IX_UserSessions_UserId_RevokedAt_ExpiresAt
+    ON UserSessions (UserId, RevokedAt, ExpiresAt);
+
+    PRINT 'Table UserSessions created';
+END
+ELSE
+BEGIN
+    PRINT 'Table UserSessions already exists';
+END
+GO
+
 IF OBJECT_ID('Employees', 'U') IS NULL
 BEGIN
     CREATE TABLE Employees (

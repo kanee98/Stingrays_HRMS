@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation';
 import { AppLayout } from '@shared/components/AppLayout';
 import { FeatureUnavailableState } from '@shared/components/FeatureUnavailableState';
 import { isSectionEnabled, isServiceEnabled, useClientAccess } from '@shared/services/clientAccess';
-import { getPortalUrl } from '@shared/services/platformUrls';
+import { buildPortalLogoutUrl, getPortalUrl } from '@shared/services/platformUrls';
 import { useAuth } from '../contexts/AuthContext';
 import { getHrmsSectionFromPath, getHrmsSidebarItems } from '../config/sidebarItems';
 
@@ -17,7 +17,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   const onLogout = async () => {
     await logout();
-    window.location.replace(portalUrl);
+    window.location.replace(buildPortalLogoutUrl());
   };
 
   if (isLoading) {

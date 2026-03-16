@@ -5,7 +5,7 @@ import { AUTH_SESSION_COOKIE } from './shared/lib/session';
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
 
-  if (pathname === '/login') {
+  if (pathname === '/login' || pathname === '/logout') {
     return NextResponse.next();
   }
 

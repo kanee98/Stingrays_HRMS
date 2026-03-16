@@ -33,21 +33,37 @@ function getCookieDomain(hostHeader: string | undefined): string | undefined {
   return `.${parts.slice(1).join(".")}`;
 }
 
+function getCookieDomains(hostHeader: string | undefined): string[] {
+  const domain = getCookieDomain(hostHeader);
+  if (!domain) {
+    return [];
+  }
+
+  const normalizedDomain = domain.startsWith(".") ? domain.slice(1) : domain;
+  return Array.from(new Set([domain, normalizedDomain].filter(Boolean)));
+}
+
 function isSecureRequest(req: Request): boolean {
   const forwardedProto = req.header("x-forwarded-proto");
   return req.secure || forwardedProto?.split(",")[0]?.trim() === "https";
+}
+
+function getBaseCookieOptions(req: Request): CookieOptions {
+  return {
+    httpOnly: true,
+    path: "/",
+    sameSite: "lax",
+    secure: isSecureRequest(req),
+  };
 }
 
 function getCookieOptions(req: Request): CookieOptions {
   const domain = getCookieDomain(req.header("x-forwarded-host") || req.header("host"));
 
   return {
-    domain,
-    httpOnly: true,
+    ...getBaseCookieOptions(req),
+    ...(domain ? { domain } : {}),
     maxAge: SESSION_MAX_AGE_MS,
-    path: "/",
-    sameSite: "lax",
-    secure: isSecureRequest(req),
   };
 }
 
@@ -56,11 +72,18 @@ export function setSessionCookie(req: Request, res: Response, token: string) {
 }
 
 export function clearSessionCookie(req: Request, res: Response) {
-  res.clearCookie(AUTH_SESSION_COOKIE, {
-    ...getCookieOptions(req),
-    expires: new Date(0),
-    maxAge: undefined,
-  });
+  const hostHeader = req.header("x-forwarded-host") || req.header("host");
+
+  // Clear both the current-host cookie and any shared-domain variants so a stale
+  // cookie on either scope cannot silently re-authenticate the user.
+  res.clearCookie(AUTH_SESSION_COOKIE, getBaseCookieOptions(req));
+
+  for (const domain of getCookieDomains(hostHeader)) {
+    res.clearCookie(AUTH_SESSION_COOKIE, {
+      ...getBaseCookieOptions(req),
+      domain,
+    });
+  }
 }
 
 export function getSessionTokenFromRequest(req: Request): string | null {

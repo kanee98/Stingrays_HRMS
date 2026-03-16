@@ -3,6 +3,7 @@ import bcrypt from "bcrypt";
 import { poolPromise } from "../config/db";
 import { signToken, verifyToken } from "../utils/paseto";
 import { clearSessionCookie, getSessionTokenFromRequest, SESSION_MAX_AGE_MS, setSessionCookie } from "../utils/sessionCookies";
+import { createSession, getSessionIdFromPayload, getUserIdFromPayload, isSessionActive, revokeSession, touchSession } from "../services/session.service";
 
 interface SessionUserRow {
   Id: number;
@@ -12,6 +13,17 @@ interface SessionUserRow {
 
 interface LoginUserRow extends SessionUserRow {
   PasswordHash: string;
+}
+
+function setNoStoreHeaders(res: Response) {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, private");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+}
+
+function setLogoutResponseHeaders(res: Response) {
+  setNoStoreHeaders(res);
+  res.setHeader("Clear-Site-Data", "\"cache\", \"storage\"");
 }
 
 async function getActiveUserById(userId: number): Promise<SessionUserRow | null> {
@@ -33,6 +45,7 @@ async function getActiveUserById(userId: number): Promise<SessionUserRow | null>
 
 export const login = async (req: Request, res: Response) => {
   const { email, password } = req.body;
+  setNoStoreHeaders(res);
 
   try {
     const pool = await poolPromise;
@@ -59,10 +72,12 @@ export const login = async (req: Request, res: Response) => {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
+    const { sessionId } = await createSession(user.Id, req);
     const token = await signToken({
-        userid: user.Id,
-        email: user.Email,
-        role: user.Role,
+      userid: user.Id,
+      email: user.Email,
+      role: user.Role,
+      sid: sessionId,
     });
 
     setSessionCookie(req, res, token);
@@ -82,6 +97,7 @@ export const login = async (req: Request, res: Response) => {
 };
 
 export const getSession = async (req: Request, res: Response) => {
+  setNoStoreHeaders(res);
   const token = getSessionTokenFromRequest(req);
 
   if (!token) {
@@ -90,18 +106,27 @@ export const getSession = async (req: Request, res: Response) => {
 
   try {
     const payload = await verifyToken(token);
-    const userId = Number(payload.userid);
+    const userId = getUserIdFromPayload(payload);
+    const sessionId = getSessionIdFromPayload(payload);
 
-    if (!Number.isInteger(userId)) {
+    if (userId == null || sessionId == null) {
       clearSessionCookie(req, res);
       return res.status(401).json({ message: "Invalid session" });
     }
 
-    const user = await getActiveUserById(userId);
-    if (!user) {
+    if (!(await isSessionActive(userId, sessionId))) {
       clearSessionCookie(req, res);
       return res.status(401).json({ message: "Session expired" });
     }
+
+    const user = await getActiveUserById(userId);
+    if (!user) {
+      await revokeSession(userId, sessionId, "user_inactive");
+      clearSessionCookie(req, res);
+      return res.status(401).json({ message: "Session expired" });
+    }
+
+    await touchSession(userId, sessionId);
 
     return res.json({
       user: {
@@ -116,6 +141,22 @@ export const getSession = async (req: Request, res: Response) => {
 };
 
 export const logout = async (req: Request, res: Response) => {
+  setLogoutResponseHeaders(res);
+  const token = getSessionTokenFromRequest(req);
+
+  if (token) {
+    try {
+      const payload = await verifyToken(token);
+      const userId = getUserIdFromPayload(payload);
+      const sessionId = getSessionIdFromPayload(payload);
+      if (userId != null && sessionId != null) {
+        await revokeSession(userId, sessionId, "logout");
+      }
+    } catch {
+      // Clear the cookie even if the token is malformed or already expired.
+    }
+  }
+
   clearSessionCookie(req, res);
   res.status(204).send();
 };

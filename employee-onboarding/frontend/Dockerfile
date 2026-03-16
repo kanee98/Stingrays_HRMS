@@ -1,15 +1,10 @@
-# Stage 1: load full repo context
-FROM alpine AS repo
-WORKDIR /repo
-COPY . .
-
-# Stage 2: build the app from repo paths
 FROM node:20-alpine
-WORKDIR /app
-COPY --from=repo /repo/employee-onboarding/frontend/package*.json ./
+WORKDIR /workspace
+COPY employee-onboarding/frontend/package*.json employee-onboarding/frontend/
+WORKDIR /workspace/employee-onboarding/frontend
 RUN npm install --legacy-peer-deps
-COPY --from=repo /repo/employee-onboarding/frontend/ ./
-COPY --from=repo /repo/hrms-ui/shared/ ./shared/
+COPY employee-onboarding/frontend/ ./
+COPY hrms-ui/shared/ ./shared/
 
 ARG NEXT_PUBLIC_PORTAL_URL=http://localhost:3000
 ARG NEXT_PUBLIC_HRMS_URL=http://localhost:3002

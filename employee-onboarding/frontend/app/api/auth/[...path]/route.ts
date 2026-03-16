@@ -1,5 +1,5 @@
 import type { NextRequest } from 'next/server';
-import { proxyAuthServiceRequest } from '@shared/lib/server/authProxy';
+import { proxyAuthServiceRequest } from '../../../lib/authProxyWithCookies';
 
 type RouteContext = {
   params: Promise<{

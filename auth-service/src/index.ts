@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import authRoutes from "./routes/auth.routes";
 import usersRoutes from "./routes/users.routes";
 import { ensureDbConnection } from "./config/db";
+import { ensureSessionStore } from "./services/session.service";
 
 dotenv.config();
 
@@ -19,6 +20,9 @@ const PORT = Number(process.env.PORT) || 4000;
 
 // Initialize database connection before starting server
 ensureDbConnection()
+  .then(() => {
+    return ensureSessionStore();
+  })
   .then(() => {
     app.listen(PORT, "0.0.0.0", () => {
       console.log(`Auth service running on port ${PORT}`);

@@ -5,6 +5,7 @@ import { AppLayout } from '@shared/components/AppLayout';
 import { FeatureUnavailableState } from '@shared/components/FeatureUnavailableState';
 import { buildHrmsLoginUrl } from '@shared/lib/appUrls';
 import { isSectionEnabled, isServiceEnabled, useClientAccess } from '@shared/services/clientAccess';
+import { buildPortalLogoutUrl } from '@shared/services/platformUrls';
 import { useAuth } from '../contexts/AuthContext';
 import { getEmployeeSectionFromPath, getEmployeeSidebarItems } from '../config/sidebarItems';
 
@@ -16,7 +17,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   const onLogout = async () => {
     await logout();
-    window.location.replace(buildHrmsLoginUrl());
+    window.location.replace(buildPortalLogoutUrl());
   };
 
   if (isLoading) {

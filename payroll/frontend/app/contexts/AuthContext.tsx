@@ -16,25 +16,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const isMountedRef = useRef(false);
+  const authMutationRef = useRef(0);
+  const refreshRequestRef = useRef(0);
+  const logoutInFlightRef = useRef(false);
 
   const refreshSession = useCallback(async ({ silent = false }: { silent?: boolean } = {}) => {
+    if (logoutInFlightRef.current) {
+      return null;
+    }
+
+    const mutationId = authMutationRef.current;
+    const refreshId = ++refreshRequestRef.current;
     if (!silent && isMountedRef.current) {
       setIsLoading(true);
     }
 
     try {
       const nextUser = await getSession();
-      if (isMountedRef.current) {
+      if (
+        isMountedRef.current &&
+        !logoutInFlightRef.current &&
+        mutationId === authMutationRef.current &&
+        refreshId === refreshRequestRef.current
+      ) {
         setUser(nextUser);
       }
       return nextUser;
     } catch {
-      if (isMountedRef.current) {
+      if (
+        isMountedRef.current &&
+        !logoutInFlightRef.current &&
+        mutationId === authMutationRef.current &&
+        refreshId === refreshRequestRef.current
+      ) {
         setUser(null);
       }
       return null;
     } finally {
-      if (!silent && isMountedRef.current) {
+      if (
+        !silent &&
+        isMountedRef.current &&
+        mutationId === authMutationRef.current &&
+        refreshId === refreshRequestRef.current
+      ) {
         setIsLoading(false);
       }
     }
@@ -66,12 +90,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [refreshSession]);
 
   const logout = useCallback(async () => {
+    const mutationId = ++authMutationRef.current;
+    logoutInFlightRef.current = true;
+
+    if (isMountedRef.current) {
+      setUser(null);
+      setIsLoading(false);
+    }
+
     try {
       await logoutSession();
     } finally {
-      if (isMountedRef.current) {
+      if (isMountedRef.current && mutationId === authMutationRef.current) {
         setUser(null);
+        setIsLoading(false);
       }
+
+      logoutInFlightRef.current = false;
     }
   }, []);
 

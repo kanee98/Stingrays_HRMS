@@ -3,12 +3,12 @@
 import { ThemeToggle } from '@shared/components/ThemeToggle';
 import { getEmployeeUrl, getPayrollUrl } from '@shared/lib/appUrls';
 import { isServiceEnabled, useClientAccess } from '@shared/services/clientAccess';
-import { getHrmsAppUrl, getSuperAdminUrl } from '@shared/services/platformUrls';
+import { buildPortalLogoutUrl, getHrmsAppUrl, getSuperAdminUrl } from '@shared/services/platformUrls';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { useAuth } from './contexts/AuthContext';
 
 function SystemsHubContent() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { snapshot, error } = useClientAccess();
 
   const systems = [
@@ -73,9 +73,8 @@ function SystemsHubContent() {
           )}
           <button
             type="button"
-            onClick={async () => {
-              await logout();
-              window.location.replace('/login');
+            onClick={() => {
+              window.location.replace(buildPortalLogoutUrl());
             }}
             className="text-sm font-medium text-[var(--muted-strong)] transition-colors hover:text-[var(--foreground)]"
           >

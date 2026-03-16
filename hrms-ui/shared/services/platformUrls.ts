@@ -46,3 +46,7 @@ export function buildPortalLoginUrl(returnUrl?: string): string {
 
   return loginUrl.toString();
 }
+
+export function buildPortalLogoutUrl(): string {
+  return new URL('/logout', getPortalUrl()).toString();
+}
