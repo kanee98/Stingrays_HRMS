@@ -34,27 +34,48 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="grid min-h-screen grid-cols-1 bg-[var(--background)] lg:grid-cols-[1.2fr_0.8fr]">
-      <section className="hidden lg:flex flex-col justify-between bg-[var(--surface-strong)] px-14 py-12 text-[var(--surface-strong-foreground)]">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/60">Control Plane</p>
-          <h1 className="mt-4 text-4xl font-semibold leading-tight">
-            Govern clients, switch services on and off, and manage module-level access from one console.
-          </h1>
-        </div>
-        <div className="grid gap-4 text-sm text-white/70">
-          <p>Client tenancy and environment policy</p>
-          <p>Service-level and section-level enablement</p>
-          <p>Audit logging and controlled rollout management</p>
+    <div className="grid min-h-screen grid-cols-1 bg-[var(--background)] lg:grid-cols-[1.15fr_0.85fr]">
+      <section className="relative hidden overflow-hidden lg:flex">
+        <div className="absolute inset-0 bg-[linear-gradient(135deg,#0e1b2f_0%,#123565_55%,#155eef_100%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.18),transparent_28%)]" />
+        <div className="relative z-10 flex w-full flex-col justify-between px-14 py-12 text-[var(--surface-strong-foreground)]">
+          <div className="max-w-xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/68">Platform Administration</p>
+            <h1 className="mt-5 text-5xl font-semibold leading-tight">
+              Govern tenants, product rollout, and privileged activity from one control center.
+            </h1>
+            <p className="mt-5 text-base leading-7 text-white/78">
+              The Super Admin workspace is built for platform operators managing tenant provisioning, module rollout,
+              operational status, and audit oversight.
+            </p>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <FeatureCard
+              eyebrow="Provision"
+              title="Tenant lifecycle"
+              body="Create workspaces, assign ownership, and manage active, pilot, inactive, or suspended states."
+            />
+            <FeatureCard
+              eyebrow="Govern"
+              title="Product access"
+              body="Stage product and module access before rollout, with optional JSON policy overrides where needed."
+            />
+            <FeatureCard
+              eyebrow="Audit"
+              title="Trace changes"
+              body="Review sign-ins, access policy mutations, and operational changes across the platform."
+            />
+          </div>
         </div>
       </section>
 
       <section className="flex items-center justify-center px-6 py-10">
-        <div className="w-full max-w-md rounded-3xl border border-[var(--surface-border)] bg-[var(--surface)] p-8 shadow-[var(--shadow-lg)]">
-          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[var(--primary)]">Super Admin</p>
-          <h2 className="mt-3 text-3xl font-semibold text-[var(--foreground)]">Sign in</h2>
-          <p className="mt-2 text-sm text-[var(--muted)]">
-            Use your Super Admin credentials to manage client tenancy and module governance.
+        <div className="w-full max-w-md rounded-[32px] border border-[var(--surface-border)] bg-[var(--surface)] p-8 shadow-[var(--shadow-lg)]">
+          <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[var(--primary)]">Super Admin Workspace</p>
+          <h2 className="mt-3 text-3xl font-semibold text-[var(--foreground)]">Sign in to continue</h2>
+          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+            Use your platform administrator credentials to manage tenant provisioning, access policy, and audit review.
           </p>
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-5">
@@ -105,11 +126,29 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <p className="mt-6 text-xs text-[var(--muted)]">
-            Seed credentials: <code className="rounded bg-[var(--surface-muted)] px-1.5 py-0.5">{'superadmin@stingrays.com / SuperAdmin@123'}</code>
+          <div className="mt-6 rounded-2xl bg-[var(--surface-muted)] px-4 py-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">Demo Access</p>
+            <p className="mt-2 text-xs leading-6 text-[var(--muted-strong)]">
+              Seed credentials:
+              <code className="ml-1 rounded bg-white px-1.5 py-0.5">{'superadmin@stingrays.com / SuperAdmin@123'}</code>
+            </p>
+          </div>
+
+          <p className="mt-4 text-xs leading-6 text-[var(--muted)]">
+            Access to this console should be restricted to platform operators and monitored through the audit trail.
           </p>
         </div>
       </section>
+    </div>
+  );
+}
+
+function FeatureCard({ eyebrow, title, body }: { eyebrow: string; title: string; body: string }) {
+  return (
+    <div className="rounded-[28px] border border-white/12 bg-white/10 p-5 backdrop-blur-sm">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-white/62">{eyebrow}</p>
+      <h3 className="mt-3 text-xl font-semibold text-white">{title}</h3>
+      <p className="mt-3 text-sm leading-6 text-white/78">{body}</p>
     </div>
   );
 }

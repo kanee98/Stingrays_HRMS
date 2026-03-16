@@ -3,8 +3,8 @@ import "./globals.css";
 import { AuthProvider } from "./contexts/AuthContext";
 
 export const metadata: Metadata = {
-  title: "Super Admin Console",
-  description: "Client and service governance console",
+  title: "Stingrays Platform Administration",
+  description: "Tenant governance, product rollout, and audit oversight for platform operators",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

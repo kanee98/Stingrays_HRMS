@@ -1,19 +1,19 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f5f7fb;
-  --foreground: #0f172a;
-  --primary: #1d4ed8;
-  --primary-hover: #1e40af;
+  --background: #eef2f7;
+  --foreground: #102033;
+  --primary: #155eef;
+  --primary-hover: #0047c7;
   --surface: #ffffff;
-  --surface-muted: #eef4ff;
-  --surface-border: #d9e3f4;
-  --surface-strong: #0b1324;
-  --surface-strong-foreground: #f8fafc;
-  --muted: #64748b;
-  --muted-strong: #334155;
-  --shadow: 0 16px 40px -28px rgb(15 23 42 / 0.35);
-  --shadow-lg: 0 30px 60px -32px rgb(15 23 42 / 0.42);
+  --surface-muted: #f4f7fb;
+  --surface-border: #d7e1ed;
+  --surface-strong: #0e1b2f;
+  --surface-strong-foreground: #f8fbff;
+  --muted: #5f7086;
+  --muted-strong: #314256;
+  --shadow: 0 24px 48px -32px rgb(16 32 51 / 0.35);
+  --shadow-lg: 0 32px 72px -36px rgb(16 32 51 / 0.42);
 }
 
 html,
@@ -23,10 +23,21 @@ body {
 
 body {
   background:
-    radial-gradient(circle at top right, rgb(29 78 216 / 0.12), transparent 28%),
-    linear-gradient(180deg, #f7f9fc 0%, #eef4ff 100%);
+    radial-gradient(circle at top left, rgb(21 94 239 / 0.14), transparent 24%),
+    radial-gradient(circle at top right, rgb(20 184 166 / 0.12), transparent 28%),
+    linear-gradient(180deg, #f7f9fc 0%, #eef2f7 100%);
   color: var(--foreground);
-  font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: "Aptos", "Segoe UI", "Helvetica Neue", sans-serif;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: "Bahnschrift", "Aptos", "Segoe UI", sans-serif;
+  letter-spacing: -0.02em;
 }
 
 a,
@@ -41,6 +52,13 @@ input,
 select,
 textarea {
   outline: none;
+  background-color: var(--surface);
+  color: var(--foreground);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: color-mix(in srgb, var(--muted) 90%, white 10%);
 }
 
 input:focus,
@@ -48,6 +66,10 @@ select:focus,
 textarea:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgb(29 78 216 / 0.12);
+}
+
+::selection {
+  background: rgb(21 94 239 / 0.16);
 }
 
 code,
