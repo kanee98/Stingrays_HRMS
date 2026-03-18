@@ -56,7 +56,7 @@ function DashboardHome() {
 
         <SectionCard eyebrow="Shared UX" title="One platform language" description="Onboarding now uses the same structural page components as HRMS and payroll.">
           <div className="grid gap-3">
-            <ActionCard title="Configure step visibility" description="Control optional workflow stages without leaving the shared settings layout." href="/settings/onboarding" actionLabel="Open settings" />
+            <ActionCard title="View employees" description="Open the employee list to review onboarding progress and completed hires." href="/employees" actionLabel="Open employees" />
             <ActionCard title="Manage prospect types" description="Control the prospect catalog and Excel import mappings used by the recruitment pipeline." href="/settings/prospect-types" actionLabel="Open settings" />
             <ActionCard title="Manage departments" description="Keep onboarding department lists aligned with the employee intake flow." href="/settings/departments" actionLabel="Open settings" />
             <ActionCard title="Manage document types" description="Update required upload categories using the same settings page pattern." href="/settings/document-types" actionLabel="Open settings" />

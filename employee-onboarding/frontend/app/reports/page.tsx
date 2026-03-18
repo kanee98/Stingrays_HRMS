@@ -23,9 +23,9 @@ export default function ReportsPage() {
               action: <Link href="/prospects" className={secondaryButtonClasses}>Open prospects</Link>,
             },
             {
-              title: 'Open onboarding settings',
-              description: 'Configure the workflow inputs that future reports will depend on.',
-              action: <Link href="/settings/onboarding" className={secondaryButtonClasses}>Open settings</Link>,
+              title: 'View employees',
+              description: 'Review onboarding progress and completed employee records from one list.',
+              action: <Link href="/employees" className={secondaryButtonClasses}>Open employees</Link>,
             },
           ]}
         />
