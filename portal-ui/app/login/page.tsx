@@ -218,10 +218,6 @@ function LoginForm() {
               )}
             </button>
           </form>
-
-          <p className="mt-8 text-sm text-[var(--muted)]">
-            Demo: <code className="rounded bg-[var(--surface-muted)] px-1.5 py-0.5 text-xs text-[var(--muted-strong)]">admin@stingrays.com</code>
-          </p>
         </div>
       </div>
     </div>

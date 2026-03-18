@@ -126,14 +126,6 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-6 rounded-2xl bg-[var(--surface-muted)] px-4 py-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">Demo Access</p>
-            <p className="mt-2 text-xs leading-6 text-[var(--muted-strong)]">
-              Seed credentials:
-              <code className="ml-1 rounded bg-white px-1.5 py-0.5">{'superadmin@fusionlabz.lk / SuperAdmin@123'}</code>
-            </p>
-          </div>
-
           <p className="mt-4 text-xs leading-6 text-[var(--muted)]">
             Access to this console should be restricted to platform operators and monitored through the audit trail.
           </p>
