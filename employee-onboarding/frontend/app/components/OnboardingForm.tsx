@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { NoticeBanner } from '@shared/components/NoticeBanner';
+import { SectionCard } from '@shared/components/SectionCard';
+import { Stepper } from '@shared/components/Stepper';
 import { getEmployeeApiUrl } from '@shared/lib/appUrls';
 import { PersonalInfoStep } from './steps/PersonalInfoStep';
 import { DocumentsStep } from './steps/DocumentsStep';
@@ -58,7 +61,6 @@ export function OnboardingForm() {
     emergencyContactPhone: '',
   });
 
-  // Fetch onboarding step visibility (Gramasevaka, Police Report optional)
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -76,10 +78,11 @@ export function OnboardingForm() {
         if (!cancelled) setOnboardingSettings({ showGramasevakaStep: true, showPoliceReportStep: true });
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  // When opened from a prospect: load existing employee and start at step 2
   useEffect(() => {
     if (!existingEmployeeId) return;
     const id = parseInt(existingEmployeeId, 10);
@@ -115,32 +118,32 @@ export function OnboardingForm() {
         if (!cancelled) setLoadingExisting(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [existingEmployeeId]);
 
   const steps = useMemo(() => {
     const showGramasevaka = onboardingSettings?.showGramasevakaStep !== false;
     const showPolice = onboardingSettings?.showPoliceReportStep !== false;
     const list: { number: number; title: string; id: StepId }[] = [
-      { number: 1, title: 'Personal Information', id: 'personal' },
+      { number: 1, title: 'Personal information', id: 'personal' },
       { number: 2, title: 'Documents', id: 'documents' },
     ];
-    if (showGramasevaka) list.push({ number: list.length + 1, title: 'Gramasevaka Details', id: 'gramasevaka' });
-    if (showPolice) list.push({ number: list.length + 1, title: 'Police Report', id: 'police' });
-    list.push({ number: list.length + 1, title: 'Review & Contract', id: 'review' });
+    if (showGramasevaka) list.push({ number: list.length + 1, title: 'Gramasevaka', id: 'gramasevaka' });
+    if (showPolice) list.push({ number: list.length + 1, title: 'Police report', id: 'police' });
+    list.push({ number: list.length + 1, title: 'Review and contract', id: 'review' });
     return list.map((s, i) => ({ ...s, number: i + 1 }));
   }, [onboardingSettings]);
 
-  // Clamp current step when steps shrink (e.g. after settings load with optional steps off)
   useEffect(() => {
     if (steps.length > 0 && currentStep > steps.length) {
       setCurrentStep(steps.length);
     }
   }, [steps.length, currentStep]);
 
-  const handleNext = async (data?: any) => {
+  const handleNext = async (data?: EmployeeData) => {
     if (currentStep === 1) {
-      // Save personal information
       setLoading(true);
       setError('');
       try {
@@ -160,19 +163,20 @@ export function OnboardingForm() {
         setEmployeeId(result.id);
         setEmployeeData({ ...employeeData, ...data });
         setCurrentStep(2);
-      } catch (err: any) {
-        setError(err.message);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to save employee data');
       } finally {
         setLoading(false);
       }
-    } else {
-      setCurrentStep(currentStep + 1);
+      return;
     }
+
+    setCurrentStep((step) => step + 1);
   };
 
   const handleBack = () => {
     if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
+      setCurrentStep((step) => step - 1);
     }
   };
 
@@ -182,119 +186,54 @@ export function OnboardingForm() {
     }
   };
 
+  const step = steps[currentStep - 1];
+
   return (
-    <div className="min-h-screen bg-[var(--background)] py-8 px-4">
-      <div className="max-w-5xl mx-auto">
-        {/* Header */}
-        <div className="bg-[var(--surface)] border border-[var(--surface-border)] rounded-[var(--radius)] shadow-[var(--shadow)] p-6 mb-6">
-          <h1 className="text-3xl font-bold text-[var(--foreground)] mb-2">Employee Onboarding</h1>
-          <p className="text-[var(--muted)]">Complete all steps to finalize your onboarding process</p>
-        </div>
+    <div className="space-y-6">
+      <SectionCard
+        eyebrow="Workflow"
+        title="Progress"
+        description="The onboarding flow uses one consistent multi-step pattern so future workflows can reuse the same structure."
+      >
+        <Stepper
+          steps={steps}
+          currentStep={currentStep}
+          canNavigateTo={(stepNumber) => Boolean(employeeId) && stepNumber <= currentStep}
+          onStepClick={handleStepClick}
+        />
+      </SectionCard>
 
-        {/* Progress Steps */}
-        <div className="bg-[var(--surface)] border border-[var(--surface-border)] rounded-[var(--radius)] shadow-[var(--shadow)] p-6 mb-6">
-          <div className="flex items-center justify-between">
-            {steps.map((step, index) => (
-              <div key={step.number} className="flex items-center flex-1">
-                <div className="flex flex-col items-center flex-1">
-                  <button
-                    onClick={() => handleStepClick(step.number)}
-                    disabled={!employeeId && step.number > 1}
-                    className={`w-12 h-12 rounded-full flex items-center justify-center font-semibold transition ${
-                      currentStep >= step.number
-                        ? 'bg-[var(--primary)] text-white'
-                        : 'bg-[var(--surface-border)] text-[var(--muted)]'
-                    } ${!employeeId && step.number > 1 ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
-                  >
-                    {step.number}
-                  </button>
-                  <span className="mt-2 text-xs font-medium text-[var(--muted)] text-center">
-                    {step.title}
-                  </span>
-                </div>
-                {index < steps.length - 1 && (
-                  <div
-                    className={`flex-1 h-1 mx-2 ${
-                      currentStep > step.number ? 'bg-[var(--primary)]' : 'bg-[var(--surface-border)]'
-                    }`}
-                  />
-                )}
-              </div>
-            ))}
+      {error ? <NoticeBanner tone="error" message={error} /> : null}
+
+      <SectionCard
+        eyebrow="Current Step"
+        title={step ? step.title : 'Loading step'}
+        description={employeeId ? `Employee record ${employeeId} is linked to this onboarding flow.` : 'Start by creating the employee record.'}
+      >
+        {loadingExisting ? (
+          <div className="rounded-[24px] bg-[var(--surface-muted)] px-6 py-10 text-center text-sm text-[var(--muted)]">
+            Loading employee record...
           </div>
-        </div>
-
-        {/* Error Message */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
-            {error}
+        ) : !step ? (
+          <div className="rounded-[24px] bg-[var(--surface-muted)] px-6 py-10 text-center text-sm text-[var(--muted)]">
+            Loading workflow step...
+          </div>
+        ) : step.id === 'personal' ? (
+          <PersonalInfoStep data={employeeData} onSubmit={handleNext} loading={loading} />
+        ) : step.id === 'documents' && employeeId ? (
+          <DocumentsStep employeeId={employeeId} onNext={handleNext} onBack={handleBack} nextLabel={steps[currentStep]?.title} />
+        ) : step.id === 'gramasevaka' && employeeId ? (
+          <GramasevakaStep employeeId={employeeId} onNext={handleNext} onBack={handleBack} nextLabel={steps[currentStep]?.title} />
+        ) : step.id === 'police' && employeeId ? (
+          <PoliceReportStep employeeId={employeeId} onNext={handleNext} onBack={handleBack} nextLabel={steps[currentStep]?.title} />
+        ) : step.id === 'review' && employeeId ? (
+          <ReviewStep employeeId={employeeId} employeeData={employeeData} onBack={handleBack} />
+        ) : (
+          <div className="rounded-[24px] bg-[var(--surface-muted)] px-6 py-10 text-center text-sm text-[var(--muted)]">
+            This step is not yet available.
           </div>
         )}
-
-        {/* Form Content */}
-        <div className="bg-[var(--surface)] border border-[var(--surface-border)] rounded-[var(--radius)] shadow-[var(--shadow)] p-8">
-          {loadingExisting ? (
-            <div className="py-12 text-center text-gray-500">Loading employee…</div>
-          ) : (
-            (() => {
-              const step = steps[currentStep - 1];
-              if (!step) return <div className="py-12 text-center text-gray-500">Loading steps…</div>;
-              if (step.id === 'personal') {
-                return (
-                  <PersonalInfoStep
-                    data={employeeData}
-                    onSubmit={handleNext}
-                    loading={loading}
-                  />
-                );
-              }
-              if (step.id === 'documents' && employeeId) {
-                const nextStep = steps[currentStep];
-                return (
-                  <DocumentsStep
-                    employeeId={employeeId}
-                    onNext={handleNext}
-                    onBack={handleBack}
-                    nextLabel={nextStep ? `Next: ${nextStep.title}` : undefined}
-                  />
-                );
-              }
-              if (step.id === 'gramasevaka' && employeeId) {
-                const nextStep = steps[currentStep];
-                return (
-                  <GramasevakaStep
-                    employeeId={employeeId}
-                    onNext={handleNext}
-                    onBack={handleBack}
-                    nextLabel={nextStep ? `Next: ${nextStep.title}` : undefined}
-                  />
-                );
-              }
-              if (step.id === 'police' && employeeId) {
-                const nextStep = steps[currentStep];
-                return (
-                  <PoliceReportStep
-                    employeeId={employeeId}
-                    onNext={handleNext}
-                    onBack={handleBack}
-                    nextLabel={nextStep ? `Next: ${nextStep.title}` : undefined}
-                  />
-                );
-              }
-              if (step.id === 'review' && employeeId) {
-                return (
-                  <ReviewStep
-                    employeeId={employeeId}
-                    employeeData={employeeData}
-                    onBack={handleBack}
-                  />
-                );
-              }
-              return <div className="py-12 text-center text-gray-500">Loading…</div>;
-            })()
-          )}
-        </div>
-      </div>
+      </SectionCard>
     </div>
   );
 }

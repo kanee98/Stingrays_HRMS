@@ -36,9 +36,14 @@ BEGIN
     CREATE TABLE Users (
         Id INT IDENTITY(1,1) PRIMARY KEY,
         Email NVARCHAR(255) NOT NULL UNIQUE,
+        FullName NVARCHAR(150) NULL,
         PasswordHash NVARCHAR(255) NOT NULL,
         IsActive BIT NOT NULL DEFAULT 1,
-        CreatedAt DATETIME DEFAULT GETDATE()
+        MustChangePassword BIT NOT NULL DEFAULT 0,
+        PasswordChangedAt DATETIME2 NULL,
+        LastPasswordResetAt DATETIME2 NULL,
+        CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        UpdatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
     );
     PRINT 'Table Users created';
 END
@@ -154,8 +159,8 @@ GO
 IF NOT EXISTS(SELECT * FROM Users WHERE Email = 'admin@stingrays.com')
 BEGIN
     DECLARE @AdminUserId INT;
-    INSERT INTO Users (Email, PasswordHash, IsActive)
-    VALUES ('admin@stingrays.com', '$2a$12$e/6/XT8z856NKg7xB2QS9OBXXAzspRyOTh9SrKJhlBw0GicIREc22', 1);
+    INSERT INTO Users (Email, FullName, PasswordHash, IsActive, MustChangePassword, PasswordChangedAt, UpdatedAt)
+    VALUES ('admin@stingrays.com', 'Platform Administrator', '$2a$12$e/6/XT8z856NKg7xB2QS9OBXXAzspRyOTh9SrKJhlBw0GicIREc22', 1, 0, SYSUTCDATETIME(), SYSUTCDATETIME());
     SET @AdminUserId = SCOPE_IDENTITY();
     
     -- Assign admin role

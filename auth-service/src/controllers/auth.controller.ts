@@ -1,13 +1,25 @@
 import { Request, Response } from "express";
 import bcrypt from "bcrypt";
+import sql from "mssql";
 import { poolPromise } from "../config/db";
 import { signToken, verifyToken } from "../utils/paseto";
 import { clearSessionCookie, getSessionTokenFromRequest, SESSION_MAX_AGE_MS, setSessionCookie } from "../utils/sessionCookies";
-import { createSession, getSessionIdFromPayload, getUserIdFromPayload, isSessionActive, revokeSession, touchSession } from "../services/session.service";
+import {
+  createSession,
+  getSessionIdFromPayload,
+  getUserIdFromPayload,
+  isSessionActive,
+  revokeSession,
+  revokeSessionsForUser,
+  touchSession,
+} from "../services/session.service";
+import { isPasswordReuse, validatePasswordStrength } from "../utils/passwordPolicy";
 
 interface SessionUserRow {
   Id: number;
   Email: string;
+  FullName: string | null;
+  MustChangePassword: boolean;
   Role: string;
 }
 
@@ -32,7 +44,7 @@ async function getActiveUserById(userId: number): Promise<SessionUserRow | null>
     .request()
     .input("userId", userId)
     .query(`
-      SELECT TOP 1 U.Id, U.Email, R.Name AS Role
+      SELECT TOP 1 U.Id, U.Email, U.FullName, U.MustChangePassword, R.Name AS Role
       FROM Users U
       JOIN UserRoles UR ON U.Id = UR.UserId
       JOIN Roles R ON UR.RoleId = R.Id
@@ -55,6 +67,7 @@ export const login = async (req: Request, res: Response) => {
       .input("email", email)
       .query(`
         SELECT U.Id, U.Email, U.PasswordHash, R.Name AS Role
+             , U.FullName, U.MustChangePassword
         FROM Users U 
         JOIN UserRoles UR ON U.Id = UR.UserId
         JOIN Roles R ON UR.RoleId = R.Id
@@ -87,6 +100,8 @@ export const login = async (req: Request, res: Response) => {
         token,
         user: {
             email: user.Email,
+            fullName: user.FullName,
+            mustChangePassword: Boolean(user.MustChangePassword),
             role: user.Role,
         },
     });
@@ -131,6 +146,8 @@ export const getSession = async (req: Request, res: Response) => {
     return res.json({
       user: {
         email: user.Email,
+        fullName: user.FullName,
+        mustChangePassword: Boolean(user.MustChangePassword),
         role: user.Role,
       },
     });
@@ -159,4 +176,90 @@ export const logout = async (req: Request, res: Response) => {
 
   clearSessionCookie(req, res);
   res.status(204).send();
+};
+
+export const changePassword = async (req: Request, res: Response) => {
+  setNoStoreHeaders(res);
+  const authenticatedUserId = Number((req as Request & { user?: Record<string, unknown> }).user?.userid);
+  const authenticatedSessionId = (req as Request & { user?: Record<string, unknown> }).user?.sid;
+  const { currentPassword, newPassword } = req.body as { currentPassword?: string; newPassword?: string };
+
+  if (!Number.isInteger(authenticatedUserId)) {
+    clearSessionCookie(req, res);
+    return res.status(401).json({ message: "Invalid session" });
+  }
+
+  if (!currentPassword || typeof currentPassword !== "string") {
+    return res.status(400).json({ message: "Current password is required" });
+  }
+
+  if (!newPassword || typeof newPassword !== "string") {
+    return res.status(400).json({ message: "New password is required" });
+  }
+
+  const passwordError = validatePasswordStrength(newPassword);
+  if (passwordError) {
+    return res.status(400).json({ message: passwordError });
+  }
+
+  if (isPasswordReuse(currentPassword, newPassword)) {
+    return res.status(400).json({ message: "New password must be different from the current password" });
+  }
+
+  try {
+    const pool = await poolPromise;
+    const result = await pool
+      .request()
+      .input("userId", sql.Int, authenticatedUserId)
+      .query(`
+        SELECT TOP 1 U.Id, U.Email, U.FullName, U.PasswordHash, U.MustChangePassword, R.Name AS Role
+        FROM Users U
+        JOIN UserRoles UR ON U.Id = UR.UserId
+        JOIN Roles R ON UR.RoleId = R.Id
+        WHERE U.Id = @userId AND U.IsActive = 1
+        ORDER BY R.Name
+      `);
+
+    if (result.recordset.length === 0) {
+      clearSessionCookie(req, res);
+      return res.status(401).json({ message: "Session expired" });
+    }
+
+    const user = result.recordset[0] as LoginUserRow;
+    const isValid = await bcrypt.compare(currentPassword, user.PasswordHash);
+    if (!isValid) {
+      return res.status(401).json({ message: "Current password is incorrect" });
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await pool
+      .request()
+      .input("userId", sql.Int, authenticatedUserId)
+      .input("passwordHash", sql.NVarChar(255), passwordHash)
+      .query(`
+        UPDATE Users
+        SET PasswordHash = @passwordHash,
+            MustChangePassword = 0,
+            PasswordChangedAt = SYSUTCDATETIME(),
+            UpdatedAt = SYSUTCDATETIME()
+        WHERE Id = @userId
+      `);
+
+    await revokeSessionsForUser(authenticatedUserId, {
+      exceptSessionId: typeof authenticatedSessionId === "string" ? authenticatedSessionId : null,
+      reason: "password_changed",
+    });
+
+    return res.json({
+      user: {
+        email: user.Email,
+        fullName: user.FullName,
+        mustChangePassword: false,
+        role: user.Role,
+      },
+    });
+  } catch (err) {
+    console.error("Change password error:", err);
+    return res.status(500).json({ message: "Failed to change password" });
+  }
 };

@@ -1,7 +1,11 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { Button } from '@shared/components/Button';
+import { Field } from '@shared/components/Field';
+import { NoticeBanner } from '@shared/components/NoticeBanner';
 import { getEmployeeApiUrl } from '@shared/lib/appUrls';
+import { inputClasses, secondaryButtonClasses } from '@shared/lib/ui';
 
 const API_URL = getEmployeeApiUrl();
 
@@ -50,13 +54,13 @@ export function PoliceReportStep({ employeeId, onNext, onBack, nextLabel }: Poli
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || 'Failed to save police report details');
       }
 
       onNext();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save police report details');
     } finally {
       setLoading(false);
     }
@@ -64,85 +68,35 @@ export function PoliceReportStep({ employeeId, onNext, onBack, nextLabel }: Poli
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">Police Report Details</h2>
-
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          {error}
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Report Number <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            name="reportNumber"
-            value={formData.reportNumber}
-            onChange={handleChange}
-            required
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Police Station <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            name="policeStation"
-            value={formData.policeStation}
-            onChange={handleChange}
-            required
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Report Date <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="date"
-            name="reportDate"
-            value={formData.reportDate}
-            onChange={handleChange}
-            required
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Upload Police Report
-          </label>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf,.jpg,.jpeg,.png"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-          />
-        </div>
+      <div>
+        <h3 className="text-2xl font-semibold text-[var(--foreground)]">Police report</h3>
+        <p className="mt-2 text-sm text-[var(--muted)]">Record the police clearance details and attach the supporting report if available.</p>
       </div>
 
-      <div className="flex justify-between pt-6">
-        <button
-          type="button"
-          onClick={onBack}
-          className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition"
-        >
+      {error ? <NoticeBanner tone="error" message={error} /> : null}
+
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <Field label="Report number" htmlFor="reportNumber" required>
+          <input id="reportNumber" type="text" name="reportNumber" value={formData.reportNumber} onChange={handleChange} required className={inputClasses} />
+        </Field>
+        <Field label="Police station" htmlFor="policeStation" required>
+          <input id="policeStation" type="text" name="policeStation" value={formData.policeStation} onChange={handleChange} required className={inputClasses} />
+        </Field>
+        <Field label="Report date" htmlFor="reportDate" required>
+          <input id="reportDate" type="date" name="reportDate" value={formData.reportDate} onChange={handleChange} required className={inputClasses} />
+        </Field>
+        <Field label="Police report file" htmlFor="policeFile" hint="Upload a PDF or image copy of the report.">
+          <input id="policeFile" ref={fileInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png" className={secondaryButtonClasses} />
+        </Field>
+      </div>
+
+      <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:justify-between">
+        <Button type="button" variant="secondary" onClick={onBack}>
           Back
-        </button>
-        <button
-          type="submit"
-          disabled={loading}
-          className="px-6 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition"
-        >
-          {loading ? 'Saving...' : (nextLabel ?? 'Next: Review & Contract')}
-        </button>
+        </Button>
+        <Button type="submit" disabled={loading}>
+          {loading ? 'Saving...' : nextLabel ? `Next: ${nextLabel}` : 'Next'}
+        </Button>
       </div>
     </form>
   );

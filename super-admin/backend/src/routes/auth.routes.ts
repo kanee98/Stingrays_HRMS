@@ -128,9 +128,18 @@ router.post("/logout", async (req: SuperAdminRequest, res) => {
     try {
       const payload = await verifyToken(token);
       const adminId = Number(payload.adminId);
-      const email = String(payload.email || "");
+      if (Number.isInteger(adminId)) {
+        const pool = await poolPromise;
+        const result = await pool
+          .request()
+          .input("id", sql.Int, adminId)
+          .query(`SELECT TOP 1 Email FROM SuperAdminUsers WHERE Id = @id`);
 
-      if (Number.isInteger(adminId) && email) {
+        const email = String(result.recordset[0]?.Email || payload.email || "");
+        if (!email) {
+          throw new Error("Super admin email not found");
+        }
+
         await recordAuditLog({
           userId: adminId,
           action: "super_admin.logout",

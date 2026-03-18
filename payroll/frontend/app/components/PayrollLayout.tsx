@@ -6,7 +6,7 @@ import { AppLayout } from '@shared/components/AppLayout';
 import { FeatureUnavailableState } from '@shared/components/FeatureUnavailableState';
 import { buildHrmsLoginUrl, getCurrentUrl } from '@shared/lib/appUrls';
 import { isSectionEnabled, isServiceEnabled, useClientAccess } from '@shared/services/clientAccess';
-import { buildPortalLogoutUrl } from '@shared/services/platformUrls';
+import { buildPortalLogoutUrl, getPortalUrl } from '@shared/services/platformUrls';
 import { useAuth } from '../contexts/AuthContext';
 import { getPayrollSectionFromPath, getPayrollSidebarItems } from '../config/sidebarItems';
 
@@ -15,6 +15,7 @@ export function PayrollLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { snapshot, isLoading: isAccessLoading } = useClientAccess();
   const sectionKey = getPayrollSectionFromPath(pathname);
+  const portalUrl = getPortalUrl();
 
   const onLogout = async () => {
     await logout();
@@ -41,7 +42,7 @@ export function PayrollLayout({ children }: { children: React.ReactNode }) {
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
           </svg>
-          <p className="mt-4 text-sm text-[var(--muted)]">Loading...</p>
+          <p className="mt-4 text-sm text-[var(--muted)]">Loading access policy...</p>
         </div>
       </div>
     );
@@ -56,7 +57,7 @@ export function PayrollLayout({ children }: { children: React.ReactNode }) {
       <FeatureUnavailableState
         title="Payroll is disabled"
         description="Enable the payroll service for this client in Super Admin before opening payroll."
-        actionHref={buildHrmsLoginUrl()}
+        actionHref={portalUrl}
         actionLabel="Return to Portal"
       />
     );
@@ -67,7 +68,7 @@ export function PayrollLayout({ children }: { children: React.ReactNode }) {
       <FeatureUnavailableState
         title="This payroll section is disabled"
         description="The client policy currently blocks this payroll feature."
-        actionHref={buildHrmsLoginUrl()}
+        actionHref={portalUrl}
         actionLabel="Return to Portal"
       />
     );

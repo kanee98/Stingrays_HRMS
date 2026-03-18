@@ -3,14 +3,21 @@
 import { useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { getCurrentUrl } from '@shared/lib/appUrls';
-import { buildPortalLoginUrl } from '@shared/services/platformUrls';
+import { buildPortalLoginUrl, buildPortalPasswordChangeUrl } from '@shared/services/platformUrls';
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
 
   useEffect(() => {
-    if (!isLoading && !user) {
-      window.location.replace(buildPortalLoginUrl(getCurrentUrl()));
+    if (!isLoading) {
+      if (!user) {
+        window.location.replace(buildPortalLoginUrl(getCurrentUrl()));
+        return;
+      }
+
+      if (user.mustChangePassword) {
+        window.location.replace(buildPortalPasswordChangeUrl(getCurrentUrl()));
+      }
     }
   }, [user, isLoading]);
 
@@ -45,6 +52,10 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!user) {
+    return null;
+  }
+
+  if (user.mustChangePassword) {
     return null;
   }
 

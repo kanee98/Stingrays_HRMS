@@ -3,15 +3,22 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../contexts/AuthContext';
-import { buildLocalLoginUrl, getCurrentPathWithSearch } from '@shared/lib/appUrls';
+import { buildLocalChangePasswordUrl, buildLocalLoginUrl, getCurrentPathWithSearch } from '@shared/lib/appUrls';
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (!isLoading && !user) {
-      router.replace(buildLocalLoginUrl(getCurrentPathWithSearch()));
+    if (!isLoading) {
+      if (!user) {
+        router.replace(buildLocalLoginUrl(getCurrentPathWithSearch()));
+        return;
+      }
+
+      if (user.mustChangePassword) {
+        router.replace(buildLocalChangePasswordUrl(getCurrentPathWithSearch()));
+      }
     }
   }, [user, isLoading, router]);
 
@@ -35,6 +42,10 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!user) {
+    return null;
+  }
+
+  if (user.mustChangePassword) {
     return null;
   }
 

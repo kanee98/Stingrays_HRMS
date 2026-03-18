@@ -124,3 +124,25 @@ export async function revokeSession(userId: number, sessionId: string, reason = 
         AND UserId = @userId
     `);
 }
+
+export async function revokeSessionsForUser(
+  userId: number,
+  options: { exceptSessionId?: string | null; reason?: string } = {},
+): Promise<void> {
+  const pool = await poolPromise;
+  const reason = options.reason || "password_changed";
+
+  await pool
+    .request()
+    .input("userId", sql.Int, userId)
+    .input("exceptSessionId", sql.UniqueIdentifier, options.exceptSessionId ?? null)
+    .input("reason", sql.NVarChar(100), reason)
+    .query(`
+      UPDATE UserSessions
+      SET RevokedAt = COALESCE(RevokedAt, SYSUTCDATETIME()),
+          RevokedReason = COALESCE(RevokedReason, @reason)
+      WHERE UserId = @userId
+        AND RevokedAt IS NULL
+        AND (@exceptSessionId IS NULL OR SessionId <> @exceptSessionId)
+    `);
+}

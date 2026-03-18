@@ -1,5 +1,8 @@
 'use client';
 
+import Link from 'next/link';
+import { FeaturePlaceholderPage } from '@shared/components/FeaturePlaceholderPage';
+import { secondaryButtonClasses } from '@shared/lib/ui';
 import { ProtectedRoute } from '../components/ProtectedRoute';
 import { DashboardLayout } from '../components/DashboardLayout';
 
@@ -7,17 +10,25 @@ export default function ReportsPage() {
   return (
     <ProtectedRoute>
       <DashboardLayout>
-        <div className="p-6 lg:p-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Onboarding Reports</h2>
-          <p className="text-gray-600 mb-6">Analytics and reports on onboarding progress and completion.</p>
-          <div className="bg-white rounded-lg shadow border border-gray-200 p-12 text-center">
-            <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-            <p className="text-gray-500 font-medium">Reports coming soon</p>
-            <p className="text-sm text-gray-400 mt-1">Time-to-productivity, completion rates, and compliance metrics.</p>
-          </div>
-        </div>
+        <FeaturePlaceholderPage
+          eyebrow="Onboarding Analytics"
+          title="Reports"
+          description="Completion, readiness, and onboarding throughput reporting will be added here within the same shared experience used across all modules."
+          emptyTitle="Onboarding reporting is planned"
+          emptyDescription="Completion rates, time-to-ready, and compliance reporting will appear here once the reporting pipeline is connected."
+          relatedActions={[
+            {
+              title: 'Review prospects',
+              description: 'Keep the candidate funnel moving while dedicated onboarding reports are being built.',
+              action: <Link href="/prospects" className={secondaryButtonClasses}>Open prospects</Link>,
+            },
+            {
+              title: 'Open onboarding settings',
+              description: 'Configure the workflow inputs that future reports will depend on.',
+              action: <Link href="/settings/onboarding" className={secondaryButtonClasses}>Open settings</Link>,
+            },
+          ]}
+        />
       </DashboardLayout>
     </ProtectedRoute>
   );

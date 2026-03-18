@@ -1,10 +1,38 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useCallback, useEffect, useState } from 'react';
+import { Button } from '@shared/components/Button';
+import { EmptyState } from '@shared/components/EmptyState';
+import { MetricCard } from '@shared/components/MetricCard';
+import { NoticeBanner } from '@shared/components/NoticeBanner';
+import { PageHeader } from '@shared/components/PageHeader';
+import { SectionCard } from '@shared/components/SectionCard';
+import { StatusBadge } from '@shared/components/StatusBadge';
 import { getPayrollApiUrl } from '@shared/lib/appUrls';
+import {
+  formatDateTime,
+  formatMonthYear,
+  formatPayrollStatus,
+  getPayrollStatusTone,
+} from '../lib/formatters';
+import { inlineActionClasses, primaryActionClasses, secondaryActionClasses } from '@shared/lib/ui';
 
 const API_URL = getPayrollApiUrl();
+const monthOptions = [
+  { value: 1, label: 'January' },
+  { value: 2, label: 'February' },
+  { value: 3, label: 'March' },
+  { value: 4, label: 'April' },
+  { value: 5, label: 'May' },
+  { value: 6, label: 'June' },
+  { value: 7, label: 'July' },
+  { value: 8, label: 'August' },
+  { value: 9, label: 'September' },
+  { value: 10, label: 'October' },
+  { value: 11, label: 'November' },
+  { value: 12, label: 'December' },
+];
 
 interface PayRun {
   Id: number;
@@ -19,6 +47,7 @@ export default function PayRunsPage() {
   const [runs, setRuns] = useState<PayRun[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
@@ -28,13 +57,17 @@ export default function PayRunsPage() {
 
   const fetchRuns = useCallback(async () => {
     try {
+      setLoading(true);
       setError(null);
-      const res = await fetch(`${API_URL}/api/payruns`);
-      if (!res.ok) throw new Error('Failed to load pay runs');
-      const data = await res.json();
-      setRuns(Array.isArray(data) ? data : []);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load');
+      const response = await fetch(`${API_URL}/api/payruns`);
+      if (!response.ok) {
+        throw new Error('Failed to load pay runs');
+      }
+
+      const payload = (await response.json()) as PayRun[];
+      setRuns(Array.isArray(payload) ? payload : []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load pay runs');
       setRuns([]);
     } finally {
       setLoading(false);
@@ -42,24 +75,32 @@ export default function PayRunsPage() {
   }, []);
 
   useEffect(() => {
-    fetchRuns();
+    void fetchRuns();
   }, [fetchRuns]);
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreate = async (event: React.FormEvent) => {
+    event.preventDefault();
     setSaving(true);
+    setError(null);
+    setNotice(null);
+
     try {
-      const res = await fetch(`${API_URL}/api/payruns`, {
+      const response = await fetch(`${API_URL}/api/payruns`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ month, year }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error((data as { error?: string }).error || 'Create failed');
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to create pay run');
+      }
+
       setShowCreate(false);
+      setNotice(`Created the ${formatMonthYear(month, year)} pay run.`);
       await fetchRuns();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Create failed');
+      setError(err instanceof Error ? err.message : 'Failed to create pay run');
     } finally {
       setSaving(false);
     }
@@ -67,13 +108,25 @@ export default function PayRunsPage() {
 
   const handleGeneratePayslips = async (id: number) => {
     setGeneratingId(id);
+    setError(null);
+    setNotice(null);
+
     try {
-      const res = await fetch(`${API_URL}/api/payruns/${id}/generate-payslips`, { method: 'POST' });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error((data as { error?: string }).error || 'Generate failed');
+      const response = await fetch(`${API_URL}/api/payruns/${id}/generate-payslips`, { method: 'POST' });
+      const payload = (await response.json().catch(() => ({}))) as { error?: string; created?: number };
+
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to generate payslips');
+      }
+
+      setNotice(
+        payload.created != null
+          ? `Generated ${payload.created} payslips for this pay run.`
+          : 'Payslips generated successfully.',
+      );
       await fetchRuns();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Generate failed');
+      setError(err instanceof Error ? err.message : 'Failed to generate payslips');
     } finally {
       setGeneratingId(null);
     }
@@ -81,144 +134,195 @@ export default function PayRunsPage() {
 
   const handleFinalize = async (id: number) => {
     setFinalizingId(id);
+    setError(null);
+    setNotice(null);
+
     try {
-      const res = await fetch(`${API_URL}/api/payruns/${id}/finalize`, { method: 'POST' });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error((data as { error?: string }).error || 'Finalize failed');
+      const response = await fetch(`${API_URL}/api/payruns/${id}/finalize`, { method: 'POST' });
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to finalize pay run');
+      }
+
+      setNotice('Pay run finalized.');
       await fetchRuns();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Finalize failed');
+      setError(err instanceof Error ? err.message : 'Failed to finalize pay run');
     } finally {
       setFinalizingId(null);
     }
   };
 
-  const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const draftCount = runs.filter((run) => run.Status === 'draft').length;
+  const finalizedCount = runs.filter((run) => run.Status === 'finalized').length;
+  const latestRun = runs[0] ?? null;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {error && (
-          <div className="mb-4 p-4 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
-            {error}
-          </div>
-        )}
-        <div className="flex justify-between items-center mb-6">
-          <p className="text-gray-600">Create a pay run for a month/year, then generate payslips by the 2nd.</p>
-          <button
-            type="button"
-            onClick={() => setShowCreate(true)}
-            className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700"
-          >
-            New pay run
-          </button>
-        </div>
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Payroll Operations"
+        title="Pay runs"
+        description="Create payroll cycles, generate payslips, and finalize each run using one consistent workflow pattern."
+        actions={
+          <>
+            <button type="button" onClick={() => setShowCreate((current) => !current)} className={primaryActionClasses}>
+              {showCreate ? 'Close create panel' : 'New pay run'}
+            </button>
+            <Link href="/reports" className={secondaryActionClasses}>
+              Open reports
+            </Link>
+          </>
+        }
+      />
 
-        {showCreate && (
-          <div className="mb-6 p-4 bg-white rounded-lg border border-gray-200">
-            <h3 className="font-medium text-gray-900 mb-3">Create pay run</h3>
-            <form onSubmit={handleCreate} className="flex gap-4 items-end">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Month</label>
-                <select
-                  value={month}
-                  onChange={(e) => setMonth(parseInt(e.target.value, 10))}
-                  className="rounded border border-gray-300 px-3 py-2 text-sm"
-                >
-                  {monthNames.map((m, i) => (
-                    <option key={i} value={i + 1}>{m}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Year</label>
-                <input
-                  type="number"
-                  value={year}
-                  onChange={(e) => setYear(parseInt(e.target.value, 10) || year)}
-                  min={2020}
-                  max={2030}
-                  className="rounded border border-gray-300 px-3 py-2 text-sm w-24"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={saving}
-                className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+      {error ? <NoticeBanner tone="error" message={error} /> : null}
+      {notice ? <NoticeBanner tone="success" message={notice} /> : null}
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <MetricCard label="Total runs" value={runs.length} helper="Cycles available in payroll" />
+        <MetricCard label="Draft runs" value={draftCount} helper="Ready for payslip generation" tone="warning" />
+        <MetricCard label="Finalized runs" value={finalizedCount} helper="Closed payroll periods" tone="success" />
+        <MetricCard
+          label="Latest cycle"
+          value={latestRun ? formatMonthYear(latestRun.Month, latestRun.Year) : 'No runs'}
+          helper={latestRun ? formatPayrollStatus(latestRun.Status) : 'Create your first payroll cycle'}
+          tone="info"
+        />
+      </div>
+
+      {showCreate ? (
+        <SectionCard
+          eyebrow="Create Cycle"
+          title="Start a new pay run"
+          description="Open one payroll cycle per month and year. Duplicate periods are blocked."
+        >
+          <form onSubmit={handleCreate} className="grid gap-4 md:grid-cols-[minmax(0,1fr)_180px_auto] md:items-end">
+            <div>
+              <label htmlFor="payrun-month" className="mb-1.5 block text-sm font-medium text-[var(--muted-strong)]">
+                Payroll month
+              </label>
+              <select
+                id="payrun-month"
+                value={month}
+                onChange={(event) => setMonth(parseInt(event.target.value, 10))}
+                className="w-full rounded-2xl border border-[var(--surface-border)] px-4 py-3"
               >
-                {saving ? 'Creating…' : 'Create'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowCreate(false)}
-                className="px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-50"
-              >
+                {monthOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="payrun-year" className="mb-1.5 block text-sm font-medium text-[var(--muted-strong)]">
+                Payroll year
+              </label>
+              <input
+                id="payrun-year"
+                type="number"
+                value={year}
+                onChange={(event) => setYear(parseInt(event.target.value, 10) || year)}
+                min={2020}
+                max={2050}
+                className="w-full rounded-2xl border border-[var(--surface-border)] px-4 py-3"
+              />
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Button type="submit" disabled={saving}>
+                {saving ? 'Creating...' : 'Create pay run'}
+              </Button>
+              <Button type="button" variant="secondary" onClick={() => setShowCreate(false)}>
                 Cancel
-              </button>
-            </form>
-          </div>
-        )}
+              </Button>
+            </div>
+          </form>
+        </SectionCard>
+      ) : null}
 
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-          {loading ? (
-            <div className="p-8 text-center text-gray-500">Loading…</div>
-          ) : runs.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">No pay runs yet. Create one above.</div>
-          ) : (
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Month / Year</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+      <SectionCard
+        eyebrow="Run Directory"
+        title="All pay runs"
+        description="Draft runs stay operational until you generate payslips and finalize the cycle."
+      >
+        {loading ? (
+          <div className="rounded-[24px] bg-[var(--surface-muted)] px-6 py-10 text-center text-sm text-[var(--muted)]">
+            Loading pay runs...
+          </div>
+        ) : runs.length === 0 ? (
+          <EmptyState
+            title="No pay runs created"
+            description="Create the first payroll cycle to start generating payslips and monthly reports."
+            action={
+              <button type="button" onClick={() => setShowCreate(true)} className={primaryActionClasses}>
+                Create pay run
+              </button>
+            }
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-[var(--surface-border)] text-[var(--muted)]">
+                  <th className="pb-3 pr-4">Cycle</th>
+                  <th className="pb-3 pr-4">Status</th>
+                  <th className="pb-3 pr-4">Created</th>
+                  <th className="pb-3 pr-4">Finalized</th>
+                  <th className="pb-3">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
-                {runs.map((r) => (
-                  <tr key={r.Id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-900">
-                      {monthNames[r.Month - 1]} {r.Year}
+              <tbody>
+                {runs.map((run) => (
+                  <tr key={run.Id} className="border-b border-[var(--surface-border)]/70 align-top">
+                    <td className="py-4 pr-4">
+                      <p className="font-semibold text-[var(--foreground)]">{formatMonthYear(run.Month, run.Year)}</p>
+                      <p className="mt-1 text-xs text-[var(--muted)]">Pay run ID {run.Id}</p>
                     </td>
-                    <td className="px-4 py-3">
-                      <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                        r.Status === 'finalized' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
-                      }`}>
-                        {r.Status}
-                      </span>
+                    <td className="py-4 pr-4">
+                      <StatusBadge
+                        label={formatPayrollStatus(run.Status)}
+                        tone={getPayrollStatusTone(run.Status)}
+                      />
                     </td>
-                    <td className="px-4 py-3 text-right text-sm space-x-2">
-                      <Link
-                        href={`/payruns/${r.Id}`}
-                        className="text-indigo-600 hover:text-indigo-900 font-medium"
-                      >
-                        View payslips
-                      </Link>
-                      {r.Status === 'draft' && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => handleGeneratePayslips(r.Id)}
-                            disabled={generatingId === r.Id}
-                            className="text-indigo-600 hover:text-indigo-900 font-medium disabled:opacity-50"
-                          >
-                            {generatingId === r.Id ? 'Generating…' : 'Generate payslips'}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleFinalize(r.Id)}
-                            disabled={finalizingId === r.Id}
-                            className="text-green-600 hover:text-green-900 font-medium disabled:opacity-50"
-                          >
-                            {finalizingId === r.Id ? 'Finalizing…' : 'Finalize'}
-                          </button>
-                        </>
-                      )}
+                    <td className="py-4 pr-4 text-[var(--muted)]">{formatDateTime(run.CreatedAt)}</td>
+                    <td className="py-4 pr-4 text-[var(--muted)]">
+                      {run.FinalizedAt ? formatDateTime(run.FinalizedAt) : 'Not finalized'}
+                    </td>
+                    <td className="py-4">
+                      <div className="flex flex-wrap items-center gap-3">
+                        <Link href={`/payruns/${run.Id}`} className={inlineActionClasses}>
+                          View payslips
+                        </Link>
+                        {run.Status === 'draft' ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => void handleGeneratePayslips(run.Id)}
+                              disabled={generatingId === run.Id}
+                              className={inlineActionClasses}
+                            >
+                              {generatingId === run.Id ? 'Generating...' : 'Generate payslips'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleFinalize(run.Id)}
+                              disabled={finalizingId === run.Id}
+                              className={inlineActionClasses}
+                            >
+                              {finalizingId === run.Id ? 'Finalizing...' : 'Finalize'}
+                            </button>
+                          </>
+                        ) : null}
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          )}
-        </div>
+          </div>
+        )}
+      </SectionCard>
     </div>
   );
 }

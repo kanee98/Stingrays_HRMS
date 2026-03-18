@@ -5,6 +5,7 @@ import authRoutes from "./routes/auth.routes";
 import usersRoutes from "./routes/users.routes";
 import { ensureDbConnection } from "./config/db";
 import { ensureSessionStore } from "./services/session.service";
+import { ensureAuthSchema } from "./services/userSchema.service";
 
 dotenv.config();
 
@@ -20,6 +21,9 @@ const PORT = Number(process.env.PORT) || 4000;
 
 // Initialize database connection before starting server
 ensureDbConnection()
+  .then(() => {
+    return ensureAuthSchema();
+  })
   .then(() => {
     return ensureSessionStore();
   })

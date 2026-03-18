@@ -1,7 +1,15 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { Button } from '@shared/components/Button';
+import { EmptyState } from '@shared/components/EmptyState';
+import { MetricCard } from '@shared/components/MetricCard';
+import { NoticeBanner } from '@shared/components/NoticeBanner';
+import { PageHeader } from '@shared/components/PageHeader';
+import { SectionCard } from '@shared/components/SectionCard';
 import { getPayrollApiUrl } from '@shared/lib/appUrls';
+import { formatCurrency } from '../lib/formatters';
+import { inlineActionClasses, primaryActionClasses, secondaryActionClasses } from '@shared/lib/ui';
 
 const API_URL = getPayrollApiUrl();
 
@@ -16,7 +24,7 @@ interface TaxBracket {
 interface DeductionRule {
   Id: number;
   Name: string;
-  Type: string;
+  Type: 'percentage' | 'fixed';
   DefaultValue: number;
 }
 
@@ -25,59 +33,112 @@ export default function ConfigPage() {
   const [deductionRules, setDeductionRules] = useState<DeductionRule[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [tab, setTab] = useState<'tax' | 'deductions'>('tax');
 
   const fetchTax = useCallback(async () => {
-    const res = await fetch(`${API_URL}/api/taxbrackets`);
-    if (res.ok) {
-      const data = await res.json();
-      setTaxBrackets(Array.isArray(data) ? data : []);
+    const response = await fetch(`${API_URL}/api/taxbrackets`);
+    if (!response.ok) {
+      throw new Error('Failed to load tax brackets');
     }
+
+    const payload = (await response.json()) as TaxBracket[];
+    setTaxBrackets(Array.isArray(payload) ? payload : []);
   }, []);
 
   const fetchDeductions = useCallback(async () => {
-    const res = await fetch(`${API_URL}/api/deductionrules`);
-    if (res.ok) {
-      const data = await res.json();
-      setDeductionRules(Array.isArray(data) ? data : []);
+    const response = await fetch(`${API_URL}/api/deductionrules`);
+    if (!response.ok) {
+      throw new Error('Failed to load deduction rules');
     }
+
+    const payload = (await response.json()) as DeductionRule[];
+    setDeductionRules(Array.isArray(payload) ? payload : []);
   }, []);
 
-  useEffect(() => {
-    setLoading(true);
-    Promise.all([fetchTax(), fetchDeductions()]).finally(() => setLoading(false));
+  const loadConfig = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      await Promise.all([fetchTax(), fetchDeductions()]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load payroll configuration');
+      setTaxBrackets([]);
+      setDeductionRules([]);
+    } finally {
+      setLoading(false);
+    }
   }, [fetchTax, fetchDeductions]);
 
+  useEffect(() => {
+    void loadConfig();
+  }, [loadConfig]);
+
+  const totalTaxCoverage = taxBrackets.reduce((sum, bracket) => sum + bracket.RatePercent, 0);
+  const percentageRules = deductionRules.filter((rule) => rule.Type === 'percentage').length;
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {error && (
-          <div className="mb-4 p-4 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
-            {error}
-          </div>
-        )}
-        <div className="flex gap-4 mb-6">
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Payroll Rules"
+        title="Configuration"
+        description="Manage tax brackets and deduction rules using the same structured admin patterns used across the rest of the platform."
+      />
+
+      {error ? <NoticeBanner tone="error" message={error} /> : null}
+      {notice ? <NoticeBanner tone="success" message={notice} /> : null}
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <MetricCard label="Tax brackets" value={taxBrackets.length} helper="Configured payroll tax ranges" />
+        <MetricCard label="Deduction rules" value={deductionRules.length} helper="Reusable deduction definitions" tone="info" />
+        <MetricCard label="Percentage rules" value={percentageRules} helper="Rules that scale with pay value" tone="warning" />
+        <MetricCard label="Tax rate coverage" value={`${totalTaxCoverage.toFixed(2)}%`} helper="Combined headline rates across brackets" tone="success" />
+      </div>
+
+      <SectionCard
+        eyebrow="Rule Sets"
+        title="Manage payroll logic"
+        description="Switch between tax brackets and deduction rules without leaving the shared layout or interaction model."
+      >
+        <div className="flex flex-wrap gap-3">
           <button
             type="button"
             onClick={() => setTab('tax')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'tax' ? 'bg-indigo-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+            className={tab === 'tax' ? primaryActionClasses : secondaryActionClasses}
           >
             Tax brackets
           </button>
           <button
             type="button"
             onClick={() => setTab('deductions')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'deductions' ? 'bg-indigo-600 text-white' : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+            className={tab === 'deductions' ? primaryActionClasses : secondaryActionClasses}
           >
             Deduction rules
           </button>
         </div>
-        {loading ? (
-          <div className="p-8 text-center text-gray-500">Loading…</div>
-        ) : tab === 'tax' ? (
-          <TaxBracketsSection brackets={taxBrackets} onRefresh={fetchTax} setError={setError} />
-        ) : (
-          <DeductionRulesSection rules={deductionRules} onRefresh={fetchDeductions} setError={setError} />
-        )}
+      </SectionCard>
+
+      {loading ? (
+        <SectionCard>
+          <div className="rounded-[24px] bg-[var(--surface-muted)] px-6 py-10 text-center text-sm text-[var(--muted)]">
+            Loading payroll configuration...
+          </div>
+        </SectionCard>
+      ) : tab === 'tax' ? (
+        <TaxBracketsSection
+          brackets={taxBrackets}
+          onRefresh={fetchTax}
+          onError={setError}
+          onNotice={setNotice}
+        />
+      ) : (
+        <DeductionRulesSection
+          rules={deductionRules}
+          onRefresh={fetchDeductions}
+          onError={setError}
+          onNotice={setNotice}
+        />
+      )}
     </div>
   );
 }
@@ -85,134 +146,223 @@ export default function ConfigPage() {
 function TaxBracketsSection({
   brackets,
   onRefresh,
-  setError,
+  onError,
+  onNotice,
 }: {
   brackets: TaxBracket[];
-  onRefresh: () => void;
-  setError: (s: string | null) => void;
+  onRefresh: () => Promise<void>;
+  onError: (value: string | null) => void;
+  onNotice: (value: string | null) => void;
 }) {
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [name, setName] = useState('');
   const [minAmount, setMinAmount] = useState(0);
   const [maxAmount, setMaxAmount] = useState(100000);
   const [ratePercent, setRatePercent] = useState(0);
   const [saving, setSaving] = useState(false);
-  const API_URL = getPayrollApiUrl();
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const resetForm = () => {
+    setEditingId(null);
+    setName('');
+    setMinAmount(0);
+    setMaxAmount(100000);
+    setRatePercent(0);
+  };
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setSaving(true);
-    setError(null);
+    onError(null);
+    onNotice(null);
+
     try {
-      const res = await fetch(`${API_URL}/api/taxbrackets`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, minAmount, maxAmount, ratePercent }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error((data as { error?: string }).error || 'Create failed');
-      setName('');
-      setMinAmount(0);
-      setMaxAmount(100000);
-      setRatePercent(0);
-      onRefresh();
+      const response = await fetch(
+        editingId == null ? `${API_URL}/api/taxbrackets` : `${API_URL}/api/taxbrackets/${editingId}`,
+        {
+          method: editingId == null ? 'POST' : 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, minAmount, maxAmount, ratePercent }),
+        },
+      );
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to save tax bracket');
+      }
+
+      onNotice(editingId == null ? 'Tax bracket created.' : 'Tax bracket updated.');
+      resetForm();
+      await onRefresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Create failed');
+      onError(err instanceof Error ? err.message : 'Failed to save tax bracket');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (id: number) => {
+    if (!window.confirm('Delete this tax bracket?')) {
+      return;
+    }
+
+    setDeletingId(id);
+    onError(null);
+    onNotice(null);
+
     try {
-      const res = await fetch(`${API_URL}/api/taxbrackets/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Delete failed');
-      onRefresh();
+      const response = await fetch(`${API_URL}/api/taxbrackets/${id}`, { method: 'DELETE' });
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to delete tax bracket');
+      }
+
+      if (editingId === id) {
+        resetForm();
+      }
+
+      onNotice('Tax bracket deleted.');
+      await onRefresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Delete failed');
+      onError(err instanceof Error ? err.message : 'Failed to delete tax bracket');
+    } finally {
+      setDeletingId(null);
     }
   };
 
+  const handleEdit = (bracket: TaxBracket) => {
+    setEditingId(bracket.Id);
+    setName(bracket.Name);
+    setMinAmount(bracket.MinAmount);
+    setMaxAmount(bracket.MaxAmount);
+    setRatePercent(bracket.RatePercent);
+    onError(null);
+    onNotice(null);
+  };
+
   return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <h3 className="font-medium text-gray-900 mb-3">Add tax bracket</h3>
-        <form onSubmit={handleCreate} className="flex flex-wrap gap-4 items-end">
+    <div className="grid gap-6 xl:grid-cols-[minmax(320px,0.95fr)_minmax(0,1.4fr)]">
+      <SectionCard
+        eyebrow="Tax Brackets"
+        title={editingId == null ? 'Add tax bracket' : 'Edit tax bracket'}
+        description="Define the income band and applicable rate for payroll calculations."
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm text-gray-700 mb-1">Name</label>
+            <label htmlFor="tax-name" className="mb-1.5 block text-sm font-medium text-[var(--muted-strong)]">
+              Bracket name
+            </label>
             <input
+              id="tax-name"
               type="text"
               value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="rounded border border-gray-300 px-3 py-2 text-sm w-40"
+              onChange={(event) => setName(event.target.value)}
+              className="w-full rounded-2xl border border-[var(--surface-border)] px-4 py-3"
               required
             />
           </div>
-          <div>
-            <label className="block text-sm text-gray-700 mb-1">Min amount</label>
-            <input
-              type="number"
-              step="0.01"
-              value={minAmount}
-              onChange={(e) => setMinAmount(parseFloat(e.target.value) || 0)}
-              className="rounded border border-gray-300 px-3 py-2 text-sm w-28"
-            />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="tax-min" className="mb-1.5 block text-sm font-medium text-[var(--muted-strong)]">
+                Minimum amount
+              </label>
+              <input
+                id="tax-min"
+                type="number"
+                step="0.01"
+                value={minAmount}
+                onChange={(event) => setMinAmount(parseFloat(event.target.value) || 0)}
+                className="w-full rounded-2xl border border-[var(--surface-border)] px-4 py-3"
+              />
+            </div>
+            <div>
+              <label htmlFor="tax-max" className="mb-1.5 block text-sm font-medium text-[var(--muted-strong)]">
+                Maximum amount
+              </label>
+              <input
+                id="tax-max"
+                type="number"
+                step="0.01"
+                value={maxAmount}
+                onChange={(event) => setMaxAmount(parseFloat(event.target.value) || 0)}
+                className="w-full rounded-2xl border border-[var(--surface-border)] px-4 py-3"
+              />
+            </div>
           </div>
           <div>
-            <label className="block text-sm text-gray-700 mb-1">Max amount</label>
+            <label htmlFor="tax-rate" className="mb-1.5 block text-sm font-medium text-[var(--muted-strong)]">
+              Rate percent
+            </label>
             <input
-              type="number"
-              step="0.01"
-              value={maxAmount}
-              onChange={(e) => setMaxAmount(parseFloat(e.target.value) || 0)}
-              className="rounded border border-gray-300 px-3 py-2 text-sm w-28"
-            />
-          </div>
-          <div>
-            <label className="block text-sm text-gray-700 mb-1">Rate %</label>
-            <input
+              id="tax-rate"
               type="number"
               step="0.01"
               value={ratePercent}
-              onChange={(e) => setRatePercent(parseFloat(e.target.value) || 0)}
-              className="rounded border border-gray-300 px-3 py-2 text-sm w-20"
+              onChange={(event) => setRatePercent(parseFloat(event.target.value) || 0)}
+              className="w-full rounded-2xl border border-[var(--surface-border)] px-4 py-3"
             />
           </div>
-          <button type="submit" disabled={saving} className="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 disabled:opacity-50">
-            {saving ? 'Adding…' : 'Add'}
-          </button>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Button type="submit" disabled={saving}>
+              {saving ? 'Saving...' : editingId == null ? 'Add tax bracket' : 'Save changes'}
+            </Button>
+            {editingId != null ? (
+              <Button type="button" variant="secondary" onClick={resetForm}>
+                Cancel edit
+              </Button>
+            ) : null}
+          </div>
         </form>
-      </div>
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-              <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Min</th>
-              <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Max</th>
-              <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Rate %</th>
-              <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {brackets.map((b) => (
-              <tr key={b.Id}>
-                <td className="px-4 py-2 text-sm text-gray-900">{b.Name}</td>
-                <td className="px-4 py-2 text-sm text-right text-gray-600">{b.MinAmount}</td>
-                <td className="px-4 py-2 text-sm text-right text-gray-600">{b.MaxAmount}</td>
-                <td className="px-4 py-2 text-sm text-right text-gray-600">{b.RatePercent}%</td>
-                <td className="px-4 py-2 text-right">
-                  <button type="button" onClick={() => handleDelete(b.Id)} className="text-red-600 hover:text-red-900 text-sm">
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {brackets.length === 0 && (
-          <div className="p-6 text-center text-gray-500 text-sm">No tax brackets. Add one above.</div>
+      </SectionCard>
+
+      <SectionCard
+        eyebrow="Reference Table"
+        title="Tax bracket list"
+        description="Review, edit, or remove tax brackets currently used in payroll calculations."
+      >
+        {brackets.length === 0 ? (
+          <EmptyState title="No tax brackets" description="Add a tax bracket to define payroll tax behavior." />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-[var(--surface-border)] text-[var(--muted)]">
+                  <th className="pb-3 pr-4">Bracket</th>
+                  <th className="pb-3 pr-4">Range</th>
+                  <th className="pb-3 pr-4 text-right">Rate</th>
+                  <th className="pb-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {brackets.map((bracket) => (
+                  <tr key={bracket.Id} className="border-b border-[var(--surface-border)]/70">
+                    <td className="py-4 pr-4 font-medium text-[var(--foreground)]">{bracket.Name}</td>
+                    <td className="py-4 pr-4 text-[var(--muted)]">
+                      {formatCurrency(bracket.MinAmount)} to {formatCurrency(bracket.MaxAmount)}
+                    </td>
+                    <td className="py-4 pr-4 text-right text-[var(--foreground)]">{bracket.RatePercent}%</td>
+                    <td className="py-4 text-right">
+                      <div className="flex justify-end gap-3">
+                        <button type="button" onClick={() => handleEdit(bracket)} className={inlineActionClasses}>
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleDelete(bracket.Id)}
+                          disabled={deletingId === bracket.Id}
+                          className="text-sm font-semibold text-red-600 transition hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {deletingId === bracket.Id ? 'Deleting...' : 'Delete'}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
-      </div>
+      </SectionCard>
     </div>
   );
 }
@@ -220,120 +370,210 @@ function TaxBracketsSection({
 function DeductionRulesSection({
   rules,
   onRefresh,
-  setError,
+  onError,
+  onNotice,
 }: {
   rules: DeductionRule[];
-  onRefresh: () => void;
-  setError: (s: string | null) => void;
+  onRefresh: () => Promise<void>;
+  onError: (value: string | null) => void;
+  onNotice: (value: string | null) => void;
 }) {
+  const [editingId, setEditingId] = useState<number | null>(null);
   const [name, setName] = useState('');
   const [type, setType] = useState<'percentage' | 'fixed'>('fixed');
   const [defaultValue, setDefaultValue] = useState(0);
   const [saving, setSaving] = useState(false);
-  const API_URL = getPayrollApiUrl();
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const resetForm = () => {
+    setEditingId(null);
+    setName('');
+    setType('fixed');
+    setDefaultValue(0);
+  };
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setSaving(true);
-    setError(null);
+    onError(null);
+    onNotice(null);
+
     try {
-      const res = await fetch(`${API_URL}/api/deductionrules`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, type, defaultValue }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error((data as { error?: string }).error || 'Create failed');
-      setName('');
-      setDefaultValue(0);
-      onRefresh();
+      const response = await fetch(
+        editingId == null ? `${API_URL}/api/deductionrules` : `${API_URL}/api/deductionrules/${editingId}`,
+        {
+          method: editingId == null ? 'POST' : 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, type, defaultValue }),
+        },
+      );
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to save deduction rule');
+      }
+
+      onNotice(editingId == null ? 'Deduction rule created.' : 'Deduction rule updated.');
+      resetForm();
+      await onRefresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Create failed');
+      onError(err instanceof Error ? err.message : 'Failed to save deduction rule');
     } finally {
       setSaving(false);
     }
   };
 
   const handleDelete = async (id: number) => {
+    if (!window.confirm('Delete this deduction rule?')) {
+      return;
+    }
+
+    setDeletingId(id);
+    onError(null);
+    onNotice(null);
+
     try {
-      const res = await fetch(`${API_URL}/api/deductionrules/${id}`, { method: 'DELETE' });
-      if (!res.ok) throw new Error('Delete failed');
-      onRefresh();
+      const response = await fetch(`${API_URL}/api/deductionrules/${id}`, { method: 'DELETE' });
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to delete deduction rule');
+      }
+
+      if (editingId === id) {
+        resetForm();
+      }
+
+      onNotice('Deduction rule deleted.');
+      await onRefresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Delete failed');
+      onError(err instanceof Error ? err.message : 'Failed to delete deduction rule');
+    } finally {
+      setDeletingId(null);
     }
   };
 
+  const handleEdit = (rule: DeductionRule) => {
+    setEditingId(rule.Id);
+    setName(rule.Name);
+    setType(rule.Type);
+    setDefaultValue(rule.DefaultValue);
+    onError(null);
+    onNotice(null);
+  };
+
   return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <h3 className="font-medium text-gray-900 mb-3">Add deduction rule</h3>
-        <form onSubmit={handleCreate} className="flex flex-wrap gap-4 items-end">
+    <div className="grid gap-6 xl:grid-cols-[minmax(320px,0.95fr)_minmax(0,1.4fr)]">
+      <SectionCard
+        eyebrow="Deduction Rules"
+        title={editingId == null ? 'Add deduction rule' : 'Edit deduction rule'}
+        description="Define reusable deduction rules as fixed amounts or percentages."
+      >
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm text-gray-700 mb-1">Name</label>
+            <label htmlFor="deduction-name" className="mb-1.5 block text-sm font-medium text-[var(--muted-strong)]">
+              Rule name
+            </label>
             <input
+              id="deduction-name"
               type="text"
               value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="rounded border border-gray-300 px-3 py-2 text-sm w-48"
+              onChange={(event) => setName(event.target.value)}
+              className="w-full rounded-2xl border border-[var(--surface-border)] px-4 py-3"
               required
             />
           </div>
-          <div>
-            <label className="block text-sm text-gray-700 mb-1">Type</label>
-            <select
-              value={type}
-              onChange={(e) => setType(e.target.value as 'percentage' | 'fixed')}
-              className="rounded border border-gray-300 px-3 py-2 text-sm"
-            >
-              <option value="fixed">Fixed</option>
-              <option value="percentage">Percentage</option>
-            </select>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="deduction-type" className="mb-1.5 block text-sm font-medium text-[var(--muted-strong)]">
+                Rule type
+              </label>
+              <select
+                id="deduction-type"
+                value={type}
+                onChange={(event) => setType(event.target.value as 'percentage' | 'fixed')}
+                className="w-full rounded-2xl border border-[var(--surface-border)] px-4 py-3"
+              >
+                <option value="fixed">Fixed amount</option>
+                <option value="percentage">Percentage</option>
+              </select>
+            </div>
+            <div>
+              <label htmlFor="deduction-default" className="mb-1.5 block text-sm font-medium text-[var(--muted-strong)]">
+                Default value
+              </label>
+              <input
+                id="deduction-default"
+                type="number"
+                step="0.01"
+                value={defaultValue}
+                onChange={(event) => setDefaultValue(parseFloat(event.target.value) || 0)}
+                className="w-full rounded-2xl border border-[var(--surface-border)] px-4 py-3"
+              />
+            </div>
           </div>
-          <div>
-            <label className="block text-sm text-gray-700 mb-1">Default value</label>
-            <input
-              type="number"
-              step="0.01"
-              value={defaultValue}
-              onChange={(e) => setDefaultValue(parseFloat(e.target.value) || 0)}
-              className="rounded border border-gray-300 px-3 py-2 text-sm w-28"
-            />
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Button type="submit" disabled={saving}>
+              {saving ? 'Saving...' : editingId == null ? 'Add deduction rule' : 'Save changes'}
+            </Button>
+            {editingId != null ? (
+              <Button type="button" variant="secondary" onClick={resetForm}>
+                Cancel edit
+              </Button>
+            ) : null}
           </div>
-          <button type="submit" disabled={saving} className="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 disabled:opacity-50">
-            {saving ? 'Adding…' : 'Add'}
-          </button>
         </form>
-      </div>
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-              <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Default</th>
-              <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {rules.map((r) => (
-              <tr key={r.Id}>
-                <td className="px-4 py-2 text-sm text-gray-900">{r.Name}</td>
-                <td className="px-4 py-2 text-sm text-gray-600">{r.Type}</td>
-                <td className="px-4 py-2 text-sm text-right text-gray-600">{r.DefaultValue}{r.Type === 'percentage' ? '%' : ''}</td>
-                <td className="px-4 py-2 text-right">
-                  <button type="button" onClick={() => handleDelete(r.Id)} className="text-red-600 hover:text-red-900 text-sm">
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {rules.length === 0 && (
-          <div className="p-6 text-center text-gray-500 text-sm">No deduction rules. Add one above.</div>
+      </SectionCard>
+
+      <SectionCard
+        eyebrow="Reference Table"
+        title="Deduction rule list"
+        description="Review or edit the reusable rules used in payroll deductions."
+      >
+        {rules.length === 0 ? (
+          <EmptyState title="No deduction rules" description="Add a deduction rule to reuse it in payroll calculations." />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-[var(--surface-border)] text-[var(--muted)]">
+                  <th className="pb-3 pr-4">Rule</th>
+                  <th className="pb-3 pr-4">Type</th>
+                  <th className="pb-3 pr-4 text-right">Default</th>
+                  <th className="pb-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rules.map((rule) => (
+                  <tr key={rule.Id} className="border-b border-[var(--surface-border)]/70">
+                    <td className="py-4 pr-4 font-medium text-[var(--foreground)]">{rule.Name}</td>
+                    <td className="py-4 pr-4 text-[var(--muted)]">
+                      {rule.Type === 'percentage' ? 'Percentage-based' : 'Fixed amount'}
+                    </td>
+                    <td className="py-4 pr-4 text-right text-[var(--foreground)]">
+                      {rule.Type === 'percentage' ? `${rule.DefaultValue}%` : formatCurrency(rule.DefaultValue)}
+                    </td>
+                    <td className="py-4 text-right">
+                      <div className="flex justify-end gap-3">
+                        <button type="button" onClick={() => handleEdit(rule)} className={inlineActionClasses}>
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleDelete(rule.Id)}
+                          disabled={deletingId === rule.Id}
+                          className="text-sm font-semibold text-red-600 transition hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          {deletingId === rule.Id ? 'Deleting...' : 'Delete'}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
-      </div>
+      </SectionCard>
     </div>
   );
 }

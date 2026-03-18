@@ -1,5 +1,8 @@
 'use client';
 
+import Link from 'next/link';
+import { FeaturePlaceholderPage } from '@shared/components/FeaturePlaceholderPage';
+import { secondaryButtonClasses } from '@shared/lib/ui';
 import { ProtectedRoute } from '../components/ProtectedRoute';
 import { DashboardLayout } from '../components/DashboardLayout';
 
@@ -7,17 +10,25 @@ export default function AttendancePage() {
   return (
     <ProtectedRoute>
       <DashboardLayout>
-        <div className="p-6 lg:p-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Attendance</h2>
-          <p className="text-gray-600 mb-6">Clock in/out, timesheets, and attendance reports.</p>
-          <div className="bg-white rounded-lg shadow border border-gray-200 p-12 text-center">
-            <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <p className="text-gray-500 font-medium">Attendance module coming soon</p>
-            <p className="text-sm text-gray-400 mt-1">Track check-in/check-out and view timesheets.</p>
-          </div>
-        </div>
+        <FeaturePlaceholderPage
+          eyebrow="Attendance Operations"
+          title="Attendance"
+          description="Track working time, exceptions, and cutoff readiness using the shared microservice page system."
+          emptyTitle="Attendance workflow is planned"
+          emptyDescription="Clocking, timesheets, and attendance exception management will land here without changing the surrounding UX contract."
+          relatedActions={[
+            {
+              title: 'Review leave balances',
+              description: 'Clear absence-related decisions before payroll cutoff.',
+              action: <Link href="/leave" className={secondaryButtonClasses}>Open leave</Link>,
+            },
+            {
+              title: 'Manage people records',
+              description: 'Keep active employees and roles current while attendance features are being completed.',
+              action: <Link href="/users" className={secondaryButtonClasses}>Open users</Link>,
+            },
+          ]}
+        />
       </DashboardLayout>
     </ProtectedRoute>
   );

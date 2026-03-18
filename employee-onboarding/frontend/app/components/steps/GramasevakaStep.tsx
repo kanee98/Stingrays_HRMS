@@ -1,7 +1,11 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { Button } from '@shared/components/Button';
+import { Field } from '@shared/components/Field';
+import { NoticeBanner } from '@shared/components/NoticeBanner';
 import { getEmployeeApiUrl } from '@shared/lib/appUrls';
+import { inputClasses, secondaryButtonClasses } from '@shared/lib/ui';
 
 const API_URL = getEmployeeApiUrl();
 
@@ -54,13 +58,13 @@ export function GramasevakaStep({ employeeId, onNext, onBack, nextLabel }: Grama
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || 'Failed to save gramasevaka details');
       }
 
       onNext();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save gramasevaka details');
     } finally {
       setLoading(false);
     }
@@ -68,113 +72,41 @@ export function GramasevakaStep({ employeeId, onNext, onBack, nextLabel }: Grama
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">Gramasevaka Certificate Details</h2>
-
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          {error}
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Gramasevaka Name <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            name="gramasevakaName"
-            value={formData.gramasevakaName}
-            onChange={handleChange}
-            required
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Gramasevaka Office <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            name="gramasevakaOffice"
-            value={formData.gramasevakaOffice}
-            onChange={handleChange}
-            required
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Gramasevaka Phone <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="tel"
-            name="gramasevakaPhone"
-            value={formData.gramasevakaPhone}
-            onChange={handleChange}
-            required
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Certificate Number <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            name="certificateNumber"
-            value={formData.certificateNumber}
-            onChange={handleChange}
-            required
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Certificate Date <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="date"
-            name="certificateDate"
-            value={formData.certificateDate}
-            onChange={handleChange}
-            required
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Upload Certificate
-          </label>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf,.jpg,.jpeg,.png"
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-          />
-        </div>
+      <div>
+        <h3 className="text-2xl font-semibold text-[var(--foreground)]">Gramasevaka certificate</h3>
+        <p className="mt-2 text-sm text-[var(--muted)]">Capture reference details and upload the supporting certificate before proceeding.</p>
       </div>
 
-      <div className="flex justify-between pt-6">
-        <button
-          type="button"
-          onClick={onBack}
-          className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition"
-        >
+      {error ? <NoticeBanner tone="error" message={error} /> : null}
+
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <Field label="Gramasevaka name" htmlFor="gramasevakaName" required>
+          <input id="gramasevakaName" type="text" name="gramasevakaName" value={formData.gramasevakaName} onChange={handleChange} required className={inputClasses} />
+        </Field>
+        <Field label="Gramasevaka office" htmlFor="gramasevakaOffice" required>
+          <input id="gramasevakaOffice" type="text" name="gramasevakaOffice" value={formData.gramasevakaOffice} onChange={handleChange} required className={inputClasses} />
+        </Field>
+        <Field label="Gramasevaka phone" htmlFor="gramasevakaPhone" required>
+          <input id="gramasevakaPhone" type="tel" name="gramasevakaPhone" value={formData.gramasevakaPhone} onChange={handleChange} required className={inputClasses} />
+        </Field>
+        <Field label="Certificate number" htmlFor="certificateNumber" required>
+          <input id="certificateNumber" type="text" name="certificateNumber" value={formData.certificateNumber} onChange={handleChange} required className={inputClasses} />
+        </Field>
+        <Field label="Certificate date" htmlFor="certificateDate" required>
+          <input id="certificateDate" type="date" name="certificateDate" value={formData.certificateDate} onChange={handleChange} required className={inputClasses} />
+        </Field>
+        <Field label="Certificate file" htmlFor="gramasevakaFile" hint="Upload a PDF or image copy of the certificate.">
+          <input id="gramasevakaFile" ref={fileInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png" className={secondaryButtonClasses} />
+        </Field>
+      </div>
+
+      <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:justify-between">
+        <Button type="button" variant="secondary" onClick={onBack}>
           Back
-        </button>
-        <button
-          type="submit"
-          disabled={loading}
-          className="px-6 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition"
-        >
-          {loading ? 'Saving...' : (nextLabel ?? 'Next: Police Report')}
-        </button>
+        </Button>
+        <Button type="submit" disabled={loading}>
+          {loading ? 'Saving...' : nextLabel ? `Next: ${nextLabel}` : 'Next'}
+        </Button>
       </div>
     </form>
   );

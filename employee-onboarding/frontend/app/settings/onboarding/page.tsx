@@ -1,6 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Button } from '@shared/components/Button';
+import { Field } from '@shared/components/Field';
+import { NoticeBanner } from '@shared/components/NoticeBanner';
+import { PageHeader } from '@shared/components/PageHeader';
+import { SectionCard } from '@shared/components/SectionCard';
+import { checkboxClasses } from '@shared/lib/ui';
 import { getEmployeeApiUrl } from '@shared/lib/appUrls';
 import { ProtectedRoute } from '../../components/ProtectedRoute';
 import { DashboardLayout } from '../../components/DashboardLayout';
@@ -20,11 +26,11 @@ export default function OnboardingSettingsPage() {
   const [message, setMessage] = useState('');
 
   useEffect(() => {
-    (async () => {
+    void (async () => {
       try {
         const res = await fetch(`${API_URL}/api/settings/onboarding`);
         if (!res.ok) {
-          setError('Failed to load settings. The server returned an error.');
+          setError('Failed to load onboarding settings.');
           setLoading(false);
           return;
         }
@@ -34,12 +40,12 @@ export default function OnboardingSettingsPage() {
       } catch (e) {
         if (isNetworkError(e)) {
           setError(
-            API_URL.startsWith("/")
-              ? "Cannot connect to the employee API. Ensure the employee-onboarding API is running (port 4000) and that both the frontend and API are running."
-              : `Cannot connect to the API at ${API_URL}. Make sure the employee-onboarding API is running and NEXT_PUBLIC_API_URL is set correctly.`
+            API_URL.startsWith('/')
+              ? 'Cannot connect to the employee API. Ensure the employee-onboarding API is running.'
+              : `Cannot connect to the API at ${API_URL}. Make sure the employee-onboarding API is running.`
           );
         } else {
-          setError('Failed to load settings.');
+          setError('Failed to load onboarding settings.');
         }
       } finally {
         setLoading(false);
@@ -61,17 +67,17 @@ export default function OnboardingSettingsPage() {
           showPoliceReportStep: showPolice,
         }),
       });
-      if (!res.ok) throw new Error('Failed to save');
-      setMessage('Settings saved.');
+      if (!res.ok) throw new Error('Failed to save settings.');
+      setMessage('Onboarding settings saved.');
     } catch (e) {
       if (isNetworkError(e)) {
         setError(
-          API_URL.startsWith("/")
-            ? "Cannot connect to the employee API. Ensure the employee-onboarding API is running (port 4000)."
+          API_URL.startsWith('/')
+            ? 'Cannot connect to the employee API. Ensure the employee-onboarding API is running.'
             : `Cannot connect to the API at ${API_URL}. Make sure the employee-onboarding API is running.`
         );
       } else {
-        setError('Failed to save settings.');
+        setError(e instanceof Error ? e.message : 'Failed to save settings.');
       }
     } finally {
       setSaving(false);
@@ -81,56 +87,41 @@ export default function OnboardingSettingsPage() {
   return (
     <ProtectedRoute>
       <DashboardLayout>
-        <div className="p-6 lg:p-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Onboarding steps</h1>
-          <p className="text-gray-600 text-sm mb-6">
-            Choose which steps appear in the employee onboarding flow. Personal Information, Documents, and Review are always shown.
-          </p>
+        <div className="space-y-6">
+          <PageHeader
+            eyebrow="Workflow Settings"
+            title="Onboarding steps"
+            description="Control which optional steps appear in the onboarding flow while keeping the page structure aligned with the rest of the platform."
+          />
 
-          {error && (
-            <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm">{error}</div>
-          )}
-          {message && (
-            <div className="mb-4 p-3 rounded-lg bg-green-50 text-green-700 text-sm">{message}</div>
-          )}
+          {error ? <NoticeBanner tone="error" message={error} /> : null}
+          {message ? <NoticeBanner tone="success" message={message} /> : null}
 
-          {loading ? (
-            <p className="text-gray-500">Loading...</p>
-          ) : (
-            <form onSubmit={handleSave} className="max-w-md space-y-4">
-              <label className="flex items-center gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                <input
-                  type="checkbox"
-                  checked={showGramasevaka}
-                  onChange={(e) => setShowGramasevaka(e.target.checked)}
-                  className="rounded border-gray-300"
-                />
-                <div>
-                  <span className="font-medium text-gray-900">Gramasevaka Details</span>
-                  <p className="text-sm text-gray-500">Show the Gramasevaka certificate step in onboarding.</p>
+          <SectionCard eyebrow="Step Visibility" title="Optional flow steps" description="Personal information, documents, and review are always enabled. Use these toggles to control the optional compliance steps.">
+            {loading ? (
+              <div className="rounded-[24px] bg-[var(--surface-muted)] px-6 py-10 text-center text-sm text-[var(--muted)]">Loading onboarding settings...</div>
+            ) : (
+              <form onSubmit={handleSave} className="space-y-4">
+                <label className="flex items-start gap-3 rounded-[24px] border border-[var(--surface-border)] bg-[var(--surface-muted)] px-5 py-4 text-sm text-[var(--muted-strong)]">
+                  <input type="checkbox" checked={showGramasevaka} onChange={(e) => setShowGramasevaka(e.target.checked)} className={checkboxClasses} />
+                  <span>
+                    <span className="block font-medium text-[var(--foreground)]">Gramasevaka details</span>
+                    Show the Gramasevaka certificate step in the onboarding workflow.
+                  </span>
+                </label>
+                <label className="flex items-start gap-3 rounded-[24px] border border-[var(--surface-border)] bg-[var(--surface-muted)] px-5 py-4 text-sm text-[var(--muted-strong)]">
+                  <input type="checkbox" checked={showPolice} onChange={(e) => setShowPolice(e.target.checked)} className={checkboxClasses} />
+                  <span>
+                    <span className="block font-medium text-[var(--foreground)]">Police report</span>
+                    Show the police report step in the onboarding workflow.
+                  </span>
+                </label>
+                <div className="flex justify-end pt-2">
+                  <Button type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save settings'}</Button>
                 </div>
-              </label>
-              <label className="flex items-center gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                <input
-                  type="checkbox"
-                  checked={showPolice}
-                  onChange={(e) => setShowPolice(e.target.checked)}
-                  className="rounded border-gray-300"
-                />
-                <div>
-                  <span className="font-medium text-gray-900">Police Report</span>
-                  <p className="text-sm text-gray-500">Show the Police Report step in onboarding.</p>
-                </div>
-              </label>
-              <button
-                type="submit"
-                disabled={saving}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 disabled:opacity-50"
-              >
-                {saving ? 'Saving...' : 'Save'}
-              </button>
-            </form>
-          )}
+              </form>
+            )}
+          </SectionCard>
         </div>
       </DashboardLayout>
     </ProtectedRoute>

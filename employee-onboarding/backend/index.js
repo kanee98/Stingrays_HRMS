@@ -31,6 +31,7 @@ const PORT = process.env.PORT || 4000;
 
 const { ensureProspectsColumns } = require("./migrations/ensure-prospects-columns");
 const { ensureEmployeesColumns } = require("./migrations/ensure-employees-columns");
+const { ensureProspectTypesTable } = require("./services/prospectTypes");
 
 // Ensure Prospects table exists (create if DB was initialized before table was added)
 async function ensureProspectsTable() {
@@ -165,6 +166,7 @@ async function ensureDepartmentsTable() {
 ensureProspectsTable()
   .then(ensureOnboardingSettingsTable)
   .then(ensureOnboardingDocumentTypesTable)
+  .then(ensureProspectTypesTable)
   .then(ensureDepartmentsTable)
   .then(ensureEmployeesColumns)
   .then(() => {

@@ -35,6 +35,19 @@ function LoginForm() {
   const returnUrl = searchParams.get('returnUrl');
   const nextPath = searchParams.get('next');
 
+  const buildPasswordChangePath = useCallback(() => {
+    const params = new URLSearchParams();
+
+    if (isTrustedReturnUrl(returnUrl)) {
+      params.set('returnUrl', returnUrl);
+    } else if (isSafeRelativePath(nextPath)) {
+      params.set('next', nextPath);
+    }
+
+    const query = params.toString();
+    return query ? `/change-password?${query}` : '/change-password';
+  }, [nextPath, returnUrl]);
+
   const navigateAfterLogin = useCallback(() => {
     if (isTrustedReturnUrl(returnUrl)) {
       window.location.replace(returnUrl);
@@ -51,9 +64,14 @@ function LoginForm() {
 
   useEffect(() => {
     if (!isLoading && user) {
+      if (user.mustChangePassword) {
+        router.replace(buildPasswordChangePath());
+        return;
+      }
+
       navigateAfterLogin();
     }
-  }, [user, isLoading, navigateAfterLogin]);
+  }, [user, isLoading, buildPasswordChangePath, navigateAfterLogin, router]);
 
   if (isLoading) {
     return <LoginSpinner />;
@@ -65,7 +83,12 @@ function LoginForm() {
     setLoading(true);
 
     try {
-      await login(email, password);
+      const nextUser = await login(email, password);
+      if (nextUser.mustChangePassword) {
+        router.replace(buildPasswordChangePath());
+        return;
+      }
+
       navigateAfterLogin();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Login failed. Please try again.');
@@ -145,9 +168,7 @@ function LoginForm() {
                 <label htmlFor="password" className="block text-sm font-medium text-[var(--muted-strong)]">
                   Password
                 </label>
-                <a href="#" className="text-sm text-[var(--primary)] hover:text-[var(--primary-hover)]">
-                  Forgot password?
-                </a>
+                <span className="text-sm text-[var(--muted)]">Contact your administrator for resets</span>
               </div>
               <input
                 id="password"

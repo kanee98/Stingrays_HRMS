@@ -1,18 +1,44 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Button } from '@shared/components/Button';
+import { Field } from '@shared/components/Field';
+import { NoticeBanner } from '@shared/components/NoticeBanner';
+import { SectionCard } from '@shared/components/SectionCard';
 import { getEmployeeApiUrl } from '@shared/lib/appUrls';
+import { inputClasses, selectClasses } from '@shared/lib/ui';
 
 const API_URL = getEmployeeApiUrl();
 
 interface ReviewStepProps {
   employeeId: number;
-  employeeData: any;
+  employeeData: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    position: string;
+    department: string;
+  };
   onBack: () => void;
 }
 
+interface ChecklistItem {
+  Id: number;
+  ItemName: string;
+  IsCompleted: boolean;
+  IsRequired: boolean;
+}
+
+interface ContractRecord {
+  Id: number;
+  ContractStart: string;
+  ContractEnd: string | null;
+  ContractType: string;
+  Salary: string;
+  Status: string;
+}
+
 export function ReviewStep({ employeeId, employeeData, onBack }: ReviewStepProps) {
-  const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
   const [contractData, setContractData] = useState({
@@ -21,21 +47,21 @@ export function ReviewStep({ employeeId, employeeData, onBack }: ReviewStepProps
     contractType: 'permanent',
     salary: '',
   });
-  const [checklist, setChecklist] = useState<any[]>([]);
-  const [contract, setContract] = useState<any>(null);
+  const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
+  const [contract, setContract] = useState<ContractRecord | null>(null);
 
   useEffect(() => {
-    fetchChecklist();
-    fetchContract();
-  }, []);
+    void fetchChecklist();
+    void fetchContract();
+  }, [employeeId]);
 
   const fetchChecklist = async () => {
     try {
       const response = await fetch(`${API_URL}/api/employees/${employeeId}`);
-      const data = await response.json();
-      setChecklist(data.checklist || []);
-    } catch (error) {
-      console.error('Failed to fetch checklist:', error);
+      const data = await response.json().catch(() => ({}));
+      setChecklist(Array.isArray(data.checklist) ? data.checklist : []);
+    } catch {
+      setChecklist([]);
     }
   };
 
@@ -46,8 +72,8 @@ export function ReviewStep({ employeeId, employeeData, onBack }: ReviewStepProps
         const data = await response.json();
         setContract(data);
       }
-    } catch (error) {
-      // Contract doesn't exist yet
+    } catch {
+      setContract(null);
     }
   };
 
@@ -70,14 +96,13 @@ export function ReviewStep({ employeeId, employeeData, onBack }: ReviewStepProps
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || 'Failed to generate contract');
       }
 
       await fetchContract();
-      alert('Contract generated successfully!');
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to generate contract');
     } finally {
       setGenerating(false);
     }
@@ -85,221 +110,135 @@ export function ReviewStep({ employeeId, employeeData, onBack }: ReviewStepProps
 
   const requiredItems = checklist.filter((item) => item.IsRequired);
   const completedRequired = requiredItems.filter((item) => item.IsCompleted);
-
-  const canGenerateContract = completedRequired.length === requiredItems.length;
+  const canGenerateContract = requiredItems.length === 0 || completedRequired.length === requiredItems.length;
+  const completionPercent = requiredItems.length === 0 ? 100 : (completedRequired.length / requiredItems.length) * 100;
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">Review & Contract Generation</h2>
-
-      {/* Checklist Status */}
-      <div className="bg-gray-50 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Onboarding Checklist</h3>
-        <div className="space-y-2">
-          {checklist.map((item) => (
-            <div key={item.Id} className="flex items-center justify-between">
-              <div className="flex items-center">
-                {item.IsCompleted ? (
-                  <svg
-                    className="w-5 h-5 text-green-600 mr-2"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
-                ) : (
-                  <svg
-                    className="w-5 h-5 text-gray-400 mr-2"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                )}
-                <span className={item.IsCompleted ? 'text-gray-900' : 'text-gray-500'}>
-                  {item.ItemName}
-                </span>
-                {item.IsRequired && (
-                  <span className="ml-2 text-xs text-red-500">*</span>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="mt-4 pt-4 border-t border-gray-200">
-          <p className="text-sm text-gray-600">
-            Progress: {completedRequired.length} of {requiredItems.length} required items completed
-          </p>
-          <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
-            <div
-              className="bg-indigo-600 h-2 rounded-full transition-all"
-              style={{
-                width: `${(completedRequired.length / requiredItems.length) * 100}%`,
-              }}
-            />
-          </div>
-        </div>
+      <div>
+        <h3 className="text-2xl font-semibold text-[var(--foreground)]">Review and contract</h3>
+        <p className="mt-2 text-sm text-[var(--muted)]">Validate onboarding completion and generate the employee contract once the required items are done.</p>
       </div>
 
-      {/* Contract Generation */}
+      {error ? <NoticeBanner tone="error" message={error} /> : null}
+
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.95fr)]">
+        <SectionCard eyebrow="Employee Summary" title={`${employeeData.firstName} ${employeeData.lastName}`} description="Core details carried forward into contract generation.">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">Email</p>
+              <p className="mt-1 text-sm text-[var(--foreground)]">{employeeData.email || 'Not provided'}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">Position</p>
+              <p className="mt-1 text-sm text-[var(--foreground)]">{employeeData.position || 'Not provided'}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">Department</p>
+              <p className="mt-1 text-sm text-[var(--foreground)]">{employeeData.department || 'Not provided'}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">Employee ID</p>
+              <p className="mt-1 text-sm text-[var(--foreground)]">{employeeId}</p>
+            </div>
+          </div>
+        </SectionCard>
+
+        <SectionCard eyebrow="Checklist" title="Required readiness" description="All required onboarding items must be completed before contract generation.">
+          <div className="space-y-3">
+            {checklist.map((item) => (
+              <div key={item.Id} className="flex items-center justify-between rounded-2xl bg-[var(--surface-muted)] px-4 py-3">
+                <div>
+                  <p className={`text-sm font-medium ${item.IsCompleted ? 'text-[var(--foreground)]' : 'text-[var(--muted-strong)]'}`}>{item.ItemName}</p>
+                  {item.IsRequired ? <p className="mt-1 text-xs text-red-500">Required item</p> : null}
+                </div>
+                <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${item.IsCompleted ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300'}`}>
+                  {item.IsCompleted ? 'Completed' : 'Pending'}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-5">
+            <div className="flex items-center justify-between text-sm text-[var(--muted)]">
+              <span>Required completion</span>
+              <span>{completedRequired.length} / {requiredItems.length}</span>
+            </div>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-[var(--surface-border)]">
+              <div className="h-full rounded-full bg-[var(--primary)]" style={{ width: `${completionPercent}%` }} />
+            </div>
+          </div>
+        </SectionCard>
+      </div>
+
       {!contract ? (
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Contract Details</h3>
-
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
-              {error}
-            </div>
-          )}
-
-          {!canGenerateContract && (
-            <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg mb-4">
-              Please complete all required onboarding items before generating the contract.
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Contract Start Date <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="date"
-                name="contractStart"
-                value={contractData.contractStart}
-                onChange={handleChange}
-                required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Contract End Date
-              </label>
-              <input
-                type="date"
-                name="contractEnd"
-                value={contractData.contractEnd}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Contract Type <span className="text-red-500">*</span>
-              </label>
-              <select
-                name="contractType"
-                value={contractData.contractType}
-                onChange={handleChange}
-                required
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              >
+        <SectionCard eyebrow="Contract" title="Generate contract" description="Create the contract record as the final step of onboarding.">
+          {!canGenerateContract ? (
+            <NoticeBanner tone="warning" message="Complete all required onboarding items before generating the contract." />
+          ) : null}
+          <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
+            <Field label="Contract start date" htmlFor="contractStart" required>
+              <input id="contractStart" type="date" name="contractStart" value={contractData.contractStart} onChange={handleChange} required className={inputClasses} />
+            </Field>
+            <Field label="Contract end date" htmlFor="contractEnd">
+              <input id="contractEnd" type="date" name="contractEnd" value={contractData.contractEnd} onChange={handleChange} className={inputClasses} />
+            </Field>
+            <Field label="Contract type" htmlFor="contractType" required>
+              <select id="contractType" name="contractType" value={contractData.contractType} onChange={handleChange} required className={selectClasses}>
                 <option value="permanent">Permanent</option>
                 <option value="contract">Contract</option>
                 <option value="temporary">Temporary</option>
                 <option value="intern">Intern</option>
               </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Salary (LKR) <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="number"
-                name="salary"
-                value={contractData.salary}
-                onChange={handleChange}
-                required
-                min="0"
-                step="0.01"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              />
-            </div>
+            </Field>
+            <Field label="Salary (LKR)" htmlFor="salary" required>
+              <input id="salary" type="number" name="salary" value={contractData.salary} onChange={handleChange} required min="0" step="0.01" className={inputClasses} />
+            </Field>
           </div>
-
-          <div className="mt-6 flex justify-end">
-            <button
-              onClick={handleGenerateContract}
-              disabled={!canGenerateContract || generating}
-              className="px-6 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition"
-            >
-              {generating ? 'Generating...' : 'Generate Contract'}
-            </button>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-between">
+            <Button type="button" variant="secondary" onClick={onBack}>
+              Back
+            </Button>
+            <Button type="button" onClick={() => void handleGenerateContract()} disabled={!canGenerateContract || generating}>
+              {generating ? 'Generating...' : 'Generate contract'}
+            </Button>
           </div>
-        </div>
+        </SectionCard>
       ) : (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-6">
-          <div className="flex items-center mb-4">
-            <svg
-              className="w-6 h-6 text-green-600 mr-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            <h3 className="text-lg font-semibold text-green-900">Contract Generated Successfully!</h3>
+        <SectionCard eyebrow="Contract" title="Contract generated" description="The onboarding workflow is complete and the employee record now has an attached contract.">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">Contract ID</p>
+              <p className="mt-1 text-sm text-[var(--foreground)]">{contract.Id}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">Type</p>
+              <p className="mt-1 text-sm text-[var(--foreground)]">{contract.ContractType}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">Start</p>
+              <p className="mt-1 text-sm text-[var(--foreground)]">{new Date(contract.ContractStart).toLocaleDateString()}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">End</p>
+              <p className="mt-1 text-sm text-[var(--foreground)]">{contract.ContractEnd ? new Date(contract.ContractEnd).toLocaleDateString() : 'Open ended'}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">Salary</p>
+              <p className="mt-1 text-sm text-[var(--foreground)]">LKR {Number(contract.Salary).toLocaleString()}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">Status</p>
+              <p className="mt-1 text-sm text-[var(--foreground)]">{contract.Status}</p>
+            </div>
           </div>
-          <div className="space-y-2 text-sm text-gray-700">
-            <p><strong>Contract ID:</strong> {contract.Id}</p>
-            <p><strong>Start Date:</strong> {new Date(contract.ContractStart).toLocaleDateString()}</p>
-            {contract.ContractEnd && (
-              <p><strong>End Date:</strong> {new Date(contract.ContractEnd).toLocaleDateString()}</p>
-            )}
-            <p><strong>Type:</strong> {contract.ContractType}</p>
-            <p><strong>Salary:</strong> LKR {parseFloat(contract.Salary).toLocaleString()}</p>
-            <p><strong>Status:</strong> {contract.Status}</p>
+          <div className="mt-6 flex items-center justify-between">
+            <Button type="button" variant="secondary" onClick={onBack}>
+              Back
+            </Button>
+            <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">Onboarding complete</span>
           </div>
-        </div>
+        </SectionCard>
       )}
-
-      <div className="flex justify-between pt-6">
-        <button
-          onClick={onBack}
-          className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition"
-        >
-          Back
-        </button>
-        {contract && (
-          <div className="text-sm text-gray-600 flex items-center">
-            <svg
-              className="w-5 h-5 text-green-600 mr-2"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M5 13l4 4L19 7"
-              />
-            </svg>
-            Onboarding Complete!
-          </div>
-        )}
-      </div>
     </div>
   );
 }

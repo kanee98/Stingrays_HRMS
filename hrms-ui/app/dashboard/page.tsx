@@ -1,140 +1,117 @@
 'use client';
 
-import { getEmployeeUrl } from '@shared/lib/appUrls';
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { getEmployeeUrl, getPayrollUrl } from '@shared/lib/appUrls';
+import { ActionCard } from '@shared/components/ActionCard';
+import { MetricCard } from '@shared/components/MetricCard';
+import { PageHeader } from '@shared/components/PageHeader';
+import { SectionCard } from '@shared/components/SectionCard';
+import { primaryButtonClasses, secondaryButtonClasses } from '@shared/lib/ui';
 import { ProtectedRoute } from '../components/ProtectedRoute';
 import { DashboardLayout } from '../components/DashboardLayout';
 import { useAuth } from '../contexts/AuthContext';
-import { Card } from '@shared/components/Card';
+
+function Icon({ path }: { path: string }) {
+  return (
+    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d={path} />
+    </svg>
+  );
+}
+
+interface DashboardUser {
+  Id: number;
+  IsActive: boolean;
+}
 
 function DashboardContent() {
   const { user } = useAuth();
+  const payrollUrl = getPayrollUrl();
+  const [activeUserCount, setActiveUserCount] = useState<number | null>(null);
+  const [totalUserCount, setTotalUserCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadUserAccessSummary() {
+      try {
+        const response = await fetch('/api/users', {
+          credentials: 'include',
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to load user access summary');
+        }
+
+        const data = await response.json();
+        const users = Array.isArray(data) ? data as DashboardUser[] : [];
+        setTotalUserCount(users.length);
+        setActiveUserCount(users.filter((account) => account.IsActive).length);
+      } catch (error) {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        console.error('Failed to load dashboard user access summary:', error);
+        setTotalUserCount(null);
+        setActiveUserCount(null);
+      }
+    }
+
+    void loadUserAccessSummary();
+
+    return () => {
+      controller.abort();
+    };
+  }, []);
+
+  const userAccessHelper = totalUserCount == null
+    ? 'Current access coverage is unavailable right now'
+    : `${totalUserCount} total HRMS account${totalUserCount === 1 ? '' : 's'} with platform access`;
 
   return (
-    <div className="p-6 lg:p-8">
-      <div className="mb-8">
-        <h2 className="text-3xl font-bold text-[var(--foreground)] tracking-tight">Dashboard</h2>
-        <p className="mt-2 text-[var(--muted)]">Welcome back, {user?.email}</p>
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Core Operations"
+        title="HRMS dashboard"
+        description="Operate workforce records, policies, and day-to-day HR workflows using the same shared page system as onboarding and payroll."
+        meta={<span>Welcome back, {user?.email}</span>}
+        actions={
+          <>
+            <a href={getEmployeeUrl()} className={secondaryButtonClasses}>Open onboarding</a>
+            <Link href="/reports" className={primaryButtonClasses}>Open reports</Link>
+          </>
+        }
+      />
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <MetricCard label="Employees" value="0" helper="Current people records in HRMS" tone="primary" icon={<Icon path="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0" />} />
+        <MetricCard label="Active contracts" value="0" helper="Employees currently in service" tone="success" icon={<Icon path="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />} />
+        <MetricCard label="Pending tasks" value="0" helper="Outstanding HR operations to review" tone="warning" icon={<Icon path="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8V7m0 10v-1m0-8c1.11 0 2.08.402 2.599 1M9.401 15c.519.598 1.49 1 2.599 1" />} />
+        <MetricCard label="Active user access" value={activeUserCount ?? '...'} helper={userAccessHelper} tone="info" icon={<Icon path="M17 20h5v-1a4 4 0 00-5-3.874M17 20H7m10 0v-1c0-.73-.195-1.414-.536-2.004M7 20H2v-1a4 4 0 015-3.874M7 20v-1c0-.73.195-1.414.536-2.004m0 0a5 5 0 018.928 0M15 7a3 3 0 11-6 0 3 3 0 016 0" />} />
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <Card padding="md">
-          <div className="flex items-center">
-            <div className="flex-shrink-0 bg-indigo-100 rounded-lg p-3">
-              <svg
-                className="w-6 h-6 text-indigo-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-[var(--muted)]">Total Employees</p>
-              <p className="text-2xl font-bold text-[var(--foreground)]">0</p>
-            </div>
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.9fr)]">
+        <SectionCard eyebrow="Quick Actions" title="Move work forward" description="Jump into the most common HRMS tasks without leaving the shared module shell.">
+          <div className="grid gap-3 md:grid-cols-2">
+            <ActionCard title="Manage employees" description="Review workforce records and user access." href="/users" />
+            <ActionCard title="Review attendance" description="Track daily presence and operational exceptions." href="/attendance" />
+            <ActionCard title="Approve leave" description="Work through pending requests and balances." href="/leave" />
+            <ActionCard title="Open settings" description="Maintain operational defaults and system behavior." href="/settings" />
           </div>
-        </Card>
+        </SectionCard>
 
-        <Card padding="md">
-          <div className="flex items-center">
-            <div className="flex-shrink-0 bg-green-100 rounded-lg p-3">
-              <svg
-                className="w-6 h-6 text-green-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-[var(--muted)]">Active Contracts</p>
-              <p className="text-2xl font-bold text-[var(--foreground)]">0</p>
-            </div>
+        <SectionCard eyebrow="Operational Priorities" title="Keep the HR cycle moving" description="Focus on the workstreams that unblock payroll, employee experience, and reporting across the platform.">
+          <div className="grid gap-3">
+            <ActionCard title="Prepare attendance for payroll cutoff" description="Clear attendance exceptions and leave balances before the next payroll cycle is processed." href="/attendance" actionLabel="Review" />
+            <ActionCard title="Move approved hires into onboarding" description="Hand off candidates into the onboarding workspace so document collection and readiness can start." href={getEmployeeUrl()} external actionLabel="Open" />
+            <ActionCard title="Validate pay-impacting changes" description="Once contracts, attendance, and leave are up to date, continue into payroll to run the period." href={payrollUrl} external actionLabel="Open" />
+            <ActionCard title="Review downstream reporting" description="Use HRMS reports to verify workforce trends, operational issues, and follow-up actions." href="/reports" actionLabel="Review" />
           </div>
-        </Card>
-
-        <Card padding="md">
-          <div className="flex items-center">
-            <div className="flex-shrink-0 bg-yellow-100 rounded-lg p-3">
-              <svg
-                className="w-6 h-6 text-yellow-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-[var(--muted)]">Pending Tasks</p>
-              <p className="text-2xl font-bold text-[var(--foreground)]">0</p>
-            </div>
-          </div>
-        </Card>
+        </SectionCard>
       </div>
-
-      {/* Quick Actions */}
-      <Card padding="md" className="mb-8">
-        <h3 className="text-lg font-semibold text-[var(--foreground)] mb-4">Quick Actions</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <a
-            href={getEmployeeUrl()}
-            className="flex items-center p-4 border border-[var(--surface-border)] rounded-lg hover:border-[var(--primary)] hover:bg-[var(--primary-muted)] transition"
-          >
-            <svg
-              className="w-5 h-5 text-indigo-600 mr-3"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-            <span className="text-[var(--foreground)] font-medium">Add New Employee</span>
-          </a>
-          <a
-            href="/reports"
-            className="flex items-center p-4 border border-[var(--surface-border)] rounded-lg hover:border-[var(--primary)] hover:bg-[var(--primary-muted)] transition"
-          >
-            <svg
-              className="w-5 h-5 text-indigo-600 mr-3"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-              />
-            </svg>
-            <span className="text-[var(--foreground)] font-medium">Generate Report</span>
-          </a>
-        </div>
-      </Card>
     </div>
   );
 }

@@ -40,13 +40,13 @@ export default function LoginPage() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.18),transparent_28%)]" />
         <div className="relative z-10 flex w-full flex-col justify-between px-14 py-12 text-[var(--surface-strong-foreground)]">
           <div className="max-w-xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/68">Platform Administration</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-white/68">FusionLabz Platform</p>
             <h1 className="mt-5 text-5xl font-semibold leading-tight">
               Govern tenants, product rollout, and privileged activity from one control center.
             </h1>
             <p className="mt-5 text-base leading-7 text-white/78">
-              The Super Admin workspace is built for platform operators managing tenant provisioning, module rollout,
-              operational status, and audit oversight.
+              The Super Admin workspace is built for FusionLabz platform operators managing tenant provisioning, module
+              rollout, operational status, and audit oversight.
             </p>
           </div>
 
@@ -75,7 +75,7 @@ export default function LoginPage() {
           <p className="text-xs font-semibold uppercase tracking-[0.35em] text-[var(--primary)]">Super Admin Workspace</p>
           <h2 className="mt-3 text-3xl font-semibold text-[var(--foreground)]">Sign in to continue</h2>
           <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-            Use your platform administrator credentials to manage tenant provisioning, access policy, and audit review.
+            Use your FusionLabz platform administrator credentials to manage tenant provisioning, access policy, and audit review.
           </p>
 
           <form onSubmit={handleSubmit} className="mt-8 space-y-5">
@@ -97,7 +97,7 @@ export default function LoginPage() {
                 onChange={(event) => setEmail(event.target.value)}
                 required
                 className="w-full rounded-2xl border border-[var(--surface-border)] px-4 py-3 outline-none focus:border-[var(--primary)]"
-                placeholder="superadmin@company.com"
+                placeholder="superadmin@fusionlabz.lk"
               />
             </div>
 
@@ -130,7 +130,7 @@ export default function LoginPage() {
             <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">Demo Access</p>
             <p className="mt-2 text-xs leading-6 text-[var(--muted-strong)]">
               Seed credentials:
-              <code className="ml-1 rounded bg-white px-1.5 py-0.5">{'superadmin@stingrays.com / SuperAdmin@123'}</code>
+              <code className="ml-1 rounded bg-white px-1.5 py-0.5">{'superadmin@fusionlabz.lk / SuperAdmin@123'}</code>
             </p>
           </div>
 

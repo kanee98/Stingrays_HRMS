@@ -1,5 +1,8 @@
 'use client';
 
+import Link from 'next/link';
+import { FeaturePlaceholderPage } from '@shared/components/FeaturePlaceholderPage';
+import { secondaryButtonClasses } from '@shared/lib/ui';
 import { ProtectedRoute } from '../components/ProtectedRoute';
 import { DashboardLayout } from '../components/DashboardLayout';
 
@@ -7,17 +10,25 @@ export default function SettingsPage() {
   return (
     <ProtectedRoute>
       <DashboardLayout>
-        <div className="p-6 lg:p-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Settings</h2>
-          <p className="text-gray-600 mb-6">System configuration, roles, and preferences.</p>
-          <div className="bg-white rounded-lg shadow border border-gray-200 p-12 text-center">
-            <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            <p className="text-gray-500 font-medium">Settings module coming soon</p>
-            <p className="text-sm text-gray-400 mt-1">Configure company, departments, and user roles.</p>
-          </div>
-        </div>
+        <FeaturePlaceholderPage
+          eyebrow="Configuration"
+          title="Settings"
+          description="Company-level configuration and policy controls will be introduced here using the same design primitives as the rest of the platform."
+          emptyTitle="Settings workflow is planned"
+          emptyDescription="System preferences, company settings, and policy defaults will be exposed here once implemented."
+          relatedActions={[
+            {
+              title: 'Manage platform users',
+              description: 'Use the existing user administration flow while deeper settings are being connected.',
+              action: <Link href="/users" className={secondaryButtonClasses}>Open users</Link>,
+            },
+            {
+              title: 'Review dashboard priorities',
+              description: 'Use the main dashboard to move work across attendance, onboarding, and payroll.',
+              action: <Link href="/dashboard" className={secondaryButtonClasses}>Open dashboard</Link>,
+            },
+          ]}
+        />
       </DashboardLayout>
     </ProtectedRoute>
   );

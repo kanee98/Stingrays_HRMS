@@ -1,11 +1,34 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Button } from '@shared/components/Button';
+import { EmptyState } from '@shared/components/EmptyState';
+import { MetricCard } from '@shared/components/MetricCard';
+import { NoticeBanner } from '@shared/components/NoticeBanner';
+import { PageHeader } from '@shared/components/PageHeader';
+import { SectionCard } from '@shared/components/SectionCard';
+import { StatusBadge } from '@shared/components/StatusBadge';
 import { getPayrollApiUrl } from '@shared/lib/appUrls';
+import {
+  formatCurrency,
+  formatMonthYear,
+  formatPayrollStatus,
+  getPayrollStatusTone,
+} from '../../lib/formatters';
+import { primaryActionClasses, secondaryActionClasses } from '@shared/lib/ui';
 
 const API_URL = getPayrollApiUrl();
+
+interface PayRun {
+  Id: number;
+  Month: number;
+  Year: number;
+  Status: string;
+  CreatedAt: string;
+  FinalizedAt: string | null;
+}
 
 interface Payslip {
   Id: number;
@@ -31,27 +54,63 @@ interface Payslip {
   NetPay: number;
 }
 
-const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const editableFields = [
+  { key: 'WorkingDays', label: 'Working days' },
+  { key: 'WorkingHours', label: 'Working hours' },
+  { key: 'BasicContractorFee', label: 'Basic fee' },
+  { key: 'Profit121', label: 'Profit 121' },
+  { key: 'Allowances', label: 'Allowances' },
+  { key: 'WeekendWeekdaysProfitShare', label: 'Weekend / weekday share' },
+  { key: 'OT', label: 'Overtime' },
+  { key: 'Commission', label: 'Commission' },
+  { key: 'Admin', label: 'Admin' },
+  { key: 'Outsourced', label: 'Outsourced' },
+] as const;
+
+type EditableFieldKey = (typeof editableFields)[number]['key'];
 
 export default function PayRunDetailPage() {
   const params = useParams();
   const id = typeof params.id === 'string' ? parseInt(params.id, 10) : NaN;
+  const [payRun, setPayRun] = useState<PayRun | null>(null);
   const [payslips, setPayslips] = useState<Payslip[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState<Partial<Payslip>>({});
+  const [editForm, setEditForm] = useState<Partial<Record<EditableFieldKey, number>>>({});
+  const [saving, setSaving] = useState(false);
 
-  const fetchPayslips = useCallback(async () => {
-    if (isNaN(id)) return;
+  const fetchDetails = useCallback(async () => {
+    if (Number.isNaN(id)) {
+      return;
+    }
+
     try {
+      setLoading(true);
       setError(null);
-      const res = await fetch(`${API_URL}/api/payslips?payRunId=${id}`);
-      if (!res.ok) throw new Error('Failed to load payslips');
-      const data = await res.json();
-      setPayslips(Array.isArray(data) ? data : []);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to load');
+
+      const [runResponse, payslipsResponse] = await Promise.all([
+        fetch(`${API_URL}/api/payruns/${id}`),
+        fetch(`${API_URL}/api/payslips?payRunId=${id}`),
+      ]);
+
+      if (!runResponse.ok) {
+        throw new Error('Failed to load pay run');
+      }
+
+      if (!payslipsResponse.ok) {
+        throw new Error('Failed to load payslips');
+      }
+
+      const runPayload = (await runResponse.json()) as PayRun;
+      const payslipsPayload = (await payslipsResponse.json()) as Payslip[];
+
+      setPayRun(runPayload);
+      setPayslips(Array.isArray(payslipsPayload) ? payslipsPayload : []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load pay run detail');
+      setPayRun(null);
       setPayslips([]);
     } finally {
       setLoading(false);
@@ -59,22 +118,22 @@ export default function PayRunDetailPage() {
   }, [id]);
 
   useEffect(() => {
-    fetchPayslips();
-  }, [fetchPayslips]);
+    void fetchDetails();
+  }, [fetchDetails]);
 
-  const openEdit = (p: Payslip) => {
-    setEditingId(p.Id);
+  const openEdit = (payslip: Payslip) => {
+    setEditingId(payslip.Id);
     setEditForm({
-      WorkingDays: p.WorkingDays,
-      WorkingHours: p.WorkingHours,
-      BasicContractorFee: p.BasicContractorFee,
-      Profit121: p.Profit121,
-      Allowances: p.Allowances,
-      WeekendWeekdaysProfitShare: p.WeekendWeekdaysProfitShare,
-      OT: p.OT,
-      Commission: p.Commission,
-      Admin: p.Admin,
-      Outsourced: p.Outsourced,
+      WorkingDays: payslip.WorkingDays,
+      WorkingHours: payslip.WorkingHours,
+      BasicContractorFee: payslip.BasicContractorFee,
+      Profit121: payslip.Profit121,
+      Allowances: payslip.Allowances,
+      WeekendWeekdaysProfitShare: payslip.WeekendWeekdaysProfitShare,
+      OT: payslip.OT,
+      Commission: payslip.Commission,
+      Admin: payslip.Admin,
+      Outsourced: payslip.Outsourced,
     });
   };
 
@@ -84,110 +143,196 @@ export default function PayRunDetailPage() {
   };
 
   const handleSaveEdit = async () => {
-    if (editingId == null) return;
+    if (editingId == null) {
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    setNotice(null);
+
     try {
-      const res = await fetch(`${API_URL}/api/payslips/${editingId}`, {
+      const response = await fetch(`${API_URL}/api/payslips/${editingId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editForm),
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error((data as { error?: string }).error || 'Update failed');
+      const payload = (await response.json().catch(() => ({}))) as { error?: string };
+
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to update payslip');
+      }
+
       closeEdit();
-      await fetchPayslips();
+      setNotice('Payslip updated.');
+      await fetchDetails();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Update failed');
+      setError(err instanceof Error ? err.message : 'Failed to update payslip');
+    } finally {
+      setSaving(false);
     }
   };
 
-  const name = (p: Payslip) => [p.FirstName, p.LastName].filter(Boolean).join(' ') || '—';
+  const totals = useMemo(() => {
+    return payslips.reduce(
+      (accumulator, payslip) => {
+        accumulator.total += payslip.Total;
+        accumulator.deductions += payslip.Deductions;
+        accumulator.netPay += payslip.NetPay;
+        return accumulator;
+      },
+      { total: 0, deductions: 0, netPay: 0 },
+    );
+  }, [payslips]);
 
-  if (isNaN(id)) {
+  if (Number.isNaN(id)) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <p className="text-red-600">Invalid pay run id.</p>
-        <Link href="/payruns" className="text-indigo-600 mt-2 inline-block">Back to pay runs</Link>
+      <div className="space-y-6">
+        <NoticeBanner tone="error" message="Invalid pay run ID." />
+        <Link href="/payruns" className={secondaryActionClasses}>
+          Back to pay runs
+        </Link>
       </div>
     );
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {error && (
-          <div className="mb-4 p-4 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
-            {error}
-          </div>
-        )}
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Pay Run Detail"
+        title={payRun ? formatMonthYear(payRun.Month, payRun.Year) : `Pay run ${id}`}
+        description="Inspect employee-level payroll output and adjust draft payslips from one structured workspace."
+        actions={
+          <>
+            <Link href="/payruns" className={secondaryActionClasses}>
+              Back to pay runs
+            </Link>
+            <Link href="/reports" className={primaryActionClasses}>
+              Open reports
+            </Link>
+          </>
+        }
+        meta={
+          payRun ? (
+            <>
+              <StatusBadge
+                label={formatPayrollStatus(payRun.Status)}
+                tone={getPayrollStatusTone(payRun.Status)}
+              />
+              <span>{payslips.length} payslips in this run</span>
+            </>
+          ) : undefined
+        }
+      />
+
+      {error ? <NoticeBanner tone="error" message={error} /> : null}
+      {notice ? <NoticeBanner tone="success" message={notice} /> : null}
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <MetricCard label="Payslips" value={loading ? '...' : payslips.length} helper="Employees included in this run" />
+        <MetricCard label="Gross pay" value={loading ? '...' : formatCurrency(totals.total)} helper="Combined pay before deductions" />
+        <MetricCard label="Deductions" value={loading ? '...' : formatCurrency(totals.deductions)} helper="Calculated deductions in the run" tone="warning" />
+        <MetricCard label="Net pay" value={loading ? '...' : formatCurrency(totals.netPay)} helper="Total payable after deductions" tone="success" />
+      </div>
+
+      <SectionCard
+        eyebrow="Payslip Directory"
+        title="Employee payslips"
+        description={
+          payRun?.Status === 'draft'
+            ? 'Edit draft values inline and the backend will recalculate totals, deductions, and net pay.'
+            : 'Finalized runs are read-only records for audit and reporting review.'
+        }
+      >
         {loading ? (
-          <div className="p-8 text-center text-gray-500">Loading…</div>
+          <div className="rounded-[24px] bg-[var(--surface-muted)] px-6 py-10 text-center text-sm text-[var(--muted)]">
+            Loading payslips...
+          </div>
         ) : payslips.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">No payslips. Generate payslips from the pay runs page.</div>
+          <EmptyState
+            title="No payslips generated"
+            description="Generate payslips from the pay runs page to populate this payroll cycle."
+            action={
+              <Link href="/payruns" className={primaryActionClasses}>
+                Return to pay runs
+              </Link>
+            }
+          />
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200 bg-white rounded-lg border border-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Designation</th>
-                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Working Days</th>
-                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Total</th>
-                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Deductions</th>
-                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Net Pay</th>
-                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+            <table className="min-w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-[var(--surface-border)] text-[var(--muted)]">
+                  <th className="pb-3 pr-4">Employee</th>
+                  <th className="pb-3 pr-4">Designation</th>
+                  <th className="pb-3 pr-4 text-right">Working days</th>
+                  <th className="pb-3 pr-4 text-right">Gross</th>
+                  <th className="pb-3 pr-4 text-right">Deductions</th>
+                  <th className="pb-3 pr-4 text-right">Net pay</th>
+                  <th className="pb-3 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
-                {payslips.map((p) => (
-                  <tr key={p.Id} className="hover:bg-gray-50">
-                    {editingId === p.Id ? (
-                      <td colSpan={7} className="px-3 py-4 bg-indigo-50">
-                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-sm">
-                          {(['WorkingDays', 'WorkingHours', 'BasicContractorFee', 'Profit121', 'Allowances', 'WeekendWeekdaysProfitShare', 'OT', 'Commission', 'Admin', 'Outsourced'] as const).map((key) => (
-                            <div key={key}>
-                              <label className="block text-xs text-gray-500">{key}</label>
-                              <input
-                                type="number"
-                                step="0.01"
-                                value={editForm[key] ?? ''}
-                                onChange={(e) => setEditForm((f) => ({ ...f, [key]: parseFloat(e.target.value) || 0 }))}
-                                className="w-full rounded border border-gray-300 px-2 py-1"
-                              />
-                            </div>
-                          ))}
-                          <div className="col-span-2 flex gap-2 items-end">
-                            <button
-                              type="button"
-                              onClick={handleSaveEdit}
-                              className="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded hover:bg-indigo-700"
-                            >
-                              Save
-                            </button>
-                            <button
-                              type="button"
-                              onClick={closeEdit}
-                              className="px-3 py-1.5 border border-gray-300 text-sm rounded hover:bg-gray-100"
-                            >
+              <tbody>
+                {payslips.map((payslip) => (
+                  <tr key={payslip.Id} className="border-b border-[var(--surface-border)]/70 align-top">
+                    {editingId === payslip.Id ? (
+                      <td colSpan={7} className="py-4">
+                        <div className="rounded-[24px] bg-[var(--surface-muted)] p-5">
+                          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                            {editableFields.map((field) => (
+                              <div key={field.key}>
+                                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">
+                                  {field.label}
+                                </label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={editForm[field.key] ?? ''}
+                                  onChange={(event) =>
+                                    setEditForm((current) => ({
+                                      ...current,
+                                      [field.key]: parseFloat(event.target.value) || 0,
+                                    }))
+                                  }
+                                  className="w-full rounded-2xl border border-[var(--surface-border)] bg-[var(--surface)] px-4 py-3"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                          <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:justify-end">
+                            <Button type="button" onClick={() => void handleSaveEdit()} disabled={saving}>
+                              {saving ? 'Saving...' : 'Save changes'}
+                            </Button>
+                            <Button type="button" variant="secondary" onClick={closeEdit} disabled={saving}>
                               Cancel
-                            </button>
+                            </Button>
                           </div>
                         </div>
                       </td>
                     ) : (
                       <>
-                        <td className="px-3 py-2 text-sm text-gray-900">{name(p)}</td>
-                        <td className="px-3 py-2 text-sm text-gray-600">{p.Designation ?? '—'}</td>
-                        <td className="px-3 py-2 text-sm text-right text-gray-600">{p.WorkingDays}</td>
-                        <td className="px-3 py-2 text-sm text-right text-gray-900">{p.Total?.toFixed(2)}</td>
-                        <td className="px-3 py-2 text-sm text-right text-gray-600">{p.Deductions?.toFixed(2)}</td>
-                        <td className="px-3 py-2 text-sm text-right font-medium text-gray-900">{p.NetPay?.toFixed(2)}</td>
-                        <td className="px-3 py-2 text-right">
-                          <button
-                            type="button"
-                            onClick={() => openEdit(p)}
-                            className="text-indigo-600 hover:text-indigo-900 text-sm font-medium"
-                          >
-                            Edit
-                          </button>
+                        <td className="py-4 pr-4">
+                          <p className="font-medium text-[var(--foreground)]">
+                            {[payslip.FirstName, payslip.LastName].filter(Boolean).join(' ') || 'Unnamed employee'}
+                          </p>
+                        </td>
+                        <td className="py-4 pr-4 text-[var(--muted)]">{payslip.Designation || 'Unassigned'}</td>
+                        <td className="py-4 pr-4 text-right text-[var(--muted)]">{payslip.WorkingDays}</td>
+                        <td className="py-4 pr-4 text-right text-[var(--foreground)]">{formatCurrency(payslip.Total)}</td>
+                        <td className="py-4 pr-4 text-right text-[var(--muted)]">{formatCurrency(payslip.Deductions)}</td>
+                        <td className="py-4 pr-4 text-right font-semibold text-[var(--foreground)]">{formatCurrency(payslip.NetPay)}</td>
+                        <td className="py-4 text-right">
+                          {payRun?.Status === 'draft' ? (
+                            <button
+                              type="button"
+                              onClick={() => openEdit(payslip)}
+                              className="text-sm font-semibold text-[var(--primary)] transition hover:text-[var(--primary-hover)]"
+                            >
+                              Edit
+                            </button>
+                          ) : (
+                            <span className="text-sm text-[var(--muted)]">Read only</span>
+                          )}
                         </td>
                       </>
                     )}
@@ -197,6 +342,7 @@ export default function PayRunDetailPage() {
             </table>
           </div>
         )}
+      </SectionCard>
     </div>
   );
 }

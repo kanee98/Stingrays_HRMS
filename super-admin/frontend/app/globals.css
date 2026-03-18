@@ -1,19 +1,42 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
 :root {
   --background: #eef2f7;
   --foreground: #102033;
   --primary: #155eef;
   --primary-hover: #0047c7;
+  --primary-muted: rgb(21 94 239 / 0.12);
   --surface: #ffffff;
   --surface-muted: #f4f7fb;
+  --surface-subtle: #e7eef7;
   --surface-border: #d7e1ed;
   --surface-strong: #0e1b2f;
   --surface-strong-foreground: #f8fbff;
   --muted: #5f7086;
   --muted-strong: #314256;
+  --radius: 1rem;
   --shadow: 0 24px 48px -32px rgb(16 32 51 / 0.35);
   --shadow-lg: 0 32px 72px -36px rgb(16 32 51 / 0.42);
+}
+
+html[data-theme='dark'] {
+  --background: #06101c;
+  --foreground: #e6eef9;
+  --primary: #5091ff;
+  --primary-hover: #74a9ff;
+  --primary-muted: rgb(80 145 255 / 0.18);
+  --surface: #0d192b;
+  --surface-muted: #122238;
+  --surface-subtle: #182b45;
+  --surface-border: #223651;
+  --surface-strong: #030a14;
+  --surface-strong-foreground: #f8fbff;
+  --muted: #8ea2bd;
+  --muted-strong: #cfdaea;
+  --shadow: 0 24px 56px -36px rgb(2 6 23 / 0.72);
+  --shadow-lg: 0 36px 84px -40px rgb(2 6 23 / 0.82);
 }
 
 html,
@@ -21,13 +44,30 @@ body {
   min-height: 100%;
 }
 
+html {
+  background: var(--background);
+  color: var(--foreground);
+  color-scheme: light;
+}
+
+html[data-theme='dark'] {
+  color-scheme: dark;
+}
+
 body {
   background:
     radial-gradient(circle at top left, rgb(21 94 239 / 0.14), transparent 24%),
     radial-gradient(circle at top right, rgb(20 184 166 / 0.12), transparent 28%),
-    linear-gradient(180deg, #f7f9fc 0%, #eef2f7 100%);
+    linear-gradient(180deg, #f7f9fc 0%, var(--background) 100%);
   color: var(--foreground);
   font-family: "Aptos", "Segoe UI", "Helvetica Neue", sans-serif;
+}
+
+html[data-theme='dark'] body {
+  background:
+    radial-gradient(circle at top left, rgb(21 94 239 / 0.24), transparent 26%),
+    radial-gradient(circle at top right, rgb(20 184 166 / 0.18), transparent 30%),
+    linear-gradient(180deg, #091527 0%, var(--background) 100%);
 }
 
 h1,
@@ -66,6 +106,44 @@ select:focus,
 textarea:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgb(29 78 216 / 0.12);
+}
+
+html[data-theme='dark'] input:not([type='checkbox']):not([type='radio']),
+html[data-theme='dark'] select,
+html[data-theme='dark'] textarea {
+  background: var(--surface);
+  border-color: var(--surface-border);
+  color: var(--foreground);
+}
+
+html[data-theme='dark'] input::placeholder,
+html[data-theme='dark'] textarea::placeholder {
+  color: var(--muted);
+}
+
+html[data-theme='dark'] .bg-white {
+  background-color: var(--surface) !important;
+}
+
+html[data-theme='dark'] .bg-slate-100 {
+  background-color: var(--surface-subtle) !important;
+}
+
+html[data-theme='dark'] .border-slate-200 {
+  border-color: var(--surface-border) !important;
+}
+
+html[data-theme='dark'] .text-slate-700,
+html[data-theme='dark'] .text-slate-600 {
+  color: var(--muted) !important;
+}
+
+html[data-theme='dark'] .hover\:bg-white:hover {
+  background-color: var(--surface) !important;
+}
+
+html[data-theme='dark'] .backdrop-blur-sm {
+  background-color: rgb(13 25 43 / 0.82) !important;
 }
 
 ::selection {

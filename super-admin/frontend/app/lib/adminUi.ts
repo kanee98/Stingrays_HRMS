@@ -14,11 +14,15 @@ const ACTION_LABELS: Record<string, string> = {
   'super_admin.logout': 'Admin sign out',
   'client.create': 'Tenant created',
   'client.update': 'Tenant profile updated',
+  'client.account.create': 'Tenant admin created',
+  'client.account.update': 'Tenant admin updated',
+  'client.account.password_reset': 'Tenant admin password reset',
   'client.access.update': 'Access policy updated',
 };
 
 const ENTITY_LABELS: Record<string, string> = {
   client: 'Tenant',
+  'client-account': 'Tenant admin',
   'client-access': 'Access policy',
   'super-admin-user': 'Admin account',
 };

@@ -3,9 +3,8 @@
 import { usePathname } from 'next/navigation';
 import { AppLayout } from '@shared/components/AppLayout';
 import { FeatureUnavailableState } from '@shared/components/FeatureUnavailableState';
-import { buildHrmsLoginUrl } from '@shared/lib/appUrls';
 import { isSectionEnabled, isServiceEnabled, useClientAccess } from '@shared/services/clientAccess';
-import { buildPortalLogoutUrl } from '@shared/services/platformUrls';
+import { buildPortalLogoutUrl, getPortalUrl } from '@shared/services/platformUrls';
 import { useAuth } from '../contexts/AuthContext';
 import { getEmployeeSectionFromPath, getEmployeeSidebarItems } from '../config/sidebarItems';
 
@@ -14,6 +13,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { snapshot, isLoading } = useClientAccess();
   const sectionKey = getEmployeeSectionFromPath(pathname);
+  const portalUrl = getPortalUrl();
 
   const onLogout = async () => {
     await logout();
@@ -44,7 +44,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       <FeatureUnavailableState
         title="Employee Onboarding is disabled"
         description="This client does not currently have access to the onboarding service."
-        actionHref={buildHrmsLoginUrl()}
+        actionHref={portalUrl}
         actionLabel="Return to Portal"
       />
     );
@@ -55,7 +55,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       <FeatureUnavailableState
         title="This onboarding section is disabled"
         description="Enable the section from the Super Admin client policy to make it available again."
-        actionHref={buildHrmsLoginUrl()}
+        actionHref={portalUrl}
         actionLabel="Return to Portal"
       />
     );

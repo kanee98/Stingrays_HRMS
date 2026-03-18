@@ -34,7 +34,7 @@ docker compose up -d
 ## 4. Sign in
 
 - User portal credentials: `admin@stingrays.com / Admin@123`
-- Super Admin credentials: `superadmin@stingrays.com / SuperAdmin@123`
+- Super Admin credentials: `superadmin@fusionlabz.lk / SuperAdmin@123`
 
 The portal at `http://localhost:3000` is now the default entry point. After sign-in, users choose which enabled system to enter. HRMS itself now runs on `http://localhost:3002`.
 

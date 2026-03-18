@@ -1,7 +1,10 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { Button } from '@shared/components/Button';
+import { NoticeBanner } from '@shared/components/NoticeBanner';
 import { getEmployeeApiUrl } from '@shared/lib/appUrls';
+import { secondaryButtonClasses } from '@shared/lib/ui';
 
 const API_URL = getEmployeeApiUrl();
 
@@ -9,9 +12,6 @@ interface DocumentTypeRow {
   Id: number;
   Name: string;
   IsRequired: boolean;
-  SortOrder: number;
-  IsActive: boolean;
-  Description?: string | null;
 }
 
 interface DocumentsStepProps {
@@ -26,6 +26,7 @@ export function DocumentsStep({ employeeId, onNext, onBack, nextLabel }: Documen
   const [loadingTypes, setLoadingTypes] = useState(true);
   const [uploading, setUploading] = useState<string | null>(null);
   const [uploadedDocs, setUploadedDocs] = useState<Record<string, boolean>>({});
+  const [error, setError] = useState('');
   const fileInputsRef = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
@@ -42,7 +43,9 @@ export function DocumentsStep({ employeeId, onNext, onBack, nextLabel }: Documen
         if (!cancelled) setLoadingTypes(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>, docType: string) => {
@@ -50,6 +53,7 @@ export function DocumentsStep({ employeeId, onNext, onBack, nextLabel }: Documen
     if (!file) return;
 
     setUploading(docType);
+    setError('');
 
     const formData = new FormData();
     formData.append('document', file);
@@ -67,131 +71,75 @@ export function DocumentsStep({ employeeId, onNext, onBack, nextLabel }: Documen
       }
 
       setUploadedDocs((prev) => ({ ...prev, [docType]: true }));
-    } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to upload document. Please try again.');
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : 'Failed to upload document');
     } finally {
       setUploading(null);
     }
   };
 
   if (loadingTypes) {
-    return (
-      <div className="space-y-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">Upload Documents</h2>
-        <p className="text-gray-500">Loading document types...</p>
-      </div>
-    );
-  }
-
-  if (documentTypes.length === 0) {
-    return (
-      <div className="space-y-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">Upload Documents</h2>
-        <p className="text-gray-500">No document types configured. An admin can add them in Settings.</p>
-        <div className="flex justify-between pt-6">
-          <button
-            onClick={onBack}
-            className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition"
-          >
-            Back
-          </button>
-          <button
-            onClick={onNext}
-            className="px-6 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition"
-          >
-            {nextLabel ?? 'Next'}
-          </button>
-        </div>
-      </div>
-    );
+    return <div className="rounded-[24px] bg-[var(--surface-muted)] px-6 py-10 text-center text-sm text-[var(--muted)]">Loading document requirements...</div>;
   }
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold text-gray-900 mb-6">Upload Documents</h2>
+      <div>
+        <h3 className="text-2xl font-semibold text-[var(--foreground)]">Documents</h3>
+        <p className="mt-2 text-sm text-[var(--muted)]">Upload each required onboarding document before moving deeper into the workflow.</p>
+      </div>
 
-      <div className="space-y-4">
-        {documentTypes.map((doc) => (
-          <div
-            key={doc.Id}
-            className="border border-gray-200 rounded-lg p-4 hover:border-indigo-300 transition"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex-1">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {doc.Name}
-                  {doc.IsRequired && <span className="text-red-500 ml-1">*</span>}
-                </label>
-                <p className="text-xs text-gray-500">
-                  Accepted formats: PDF, JPG, PNG, DOC, DOCX (Max 10MB)
-                </p>
-              </div>
-              <div className="ml-4">
-                {uploadedDocs[doc.Name] ? (
-                  <div className="flex items-center text-green-600">
-                    <svg
-                      className="w-5 h-5 mr-2"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                    Uploaded
-                  </div>
-                ) : (
+      {error ? <NoticeBanner tone="error" message={error} /> : null}
+
+      {documentTypes.length === 0 ? (
+        <NoticeBanner tone="warning" message="No document types are configured yet. An administrator can add them in onboarding settings." />
+      ) : (
+        <div className="space-y-4">
+          {documentTypes.map((documentType) => (
+            <div key={documentType.Id} className="rounded-[24px] border border-[var(--surface-border)] bg-[var(--surface-muted)] p-5">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-[var(--foreground)]">
+                    {documentType.Name}
+                    {documentType.IsRequired ? <span className="ml-1 text-red-500">*</span> : null}
+                  </p>
+                  <p className="mt-1 text-sm text-[var(--muted)]">Accepted formats: PDF, JPG, PNG, DOC, DOCX up to 10MB.</p>
+                </div>
+                <div>
                   <input
                     ref={(el) => {
-                      fileInputsRef.current[doc.Name] = el;
+                      fileInputsRef.current[documentType.Name] = el;
                     }}
                     type="file"
                     accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                    onChange={(e) => handleFileChange(e, doc.Name)}
-                    disabled={uploading === doc.Name}
+                    onChange={(event) => void handleFileChange(event, documentType.Name)}
+                    disabled={uploading === documentType.Name}
                     className="hidden"
-                    id={`file-${doc.Id}`}
+                    id={`file-${documentType.Id}`}
                   />
-                )}
-                <label
-                  htmlFor={`file-${doc.Id}`}
-                  className={`px-4 py-2 rounded-lg font-medium cursor-pointer transition ${
-                    uploadedDocs[doc.Name]
-                      ? 'bg-green-100 text-green-700 cursor-not-allowed'
-                      : uploading === doc.Name
-                      ? 'bg-gray-100 text-gray-500 cursor-not-allowed'
-                      : 'bg-indigo-600 text-white hover:bg-indigo-700'
-                  }`}
-                >
-                  {uploading === doc.Name
-                    ? 'Uploading...'
-                    : uploadedDocs[doc.Name]
-                    ? 'Uploaded'
-                    : 'Choose File'}
-                </label>
+                  {uploadedDocs[documentType.Name] ? (
+                    <span className="inline-flex rounded-xl bg-emerald-100 px-4 py-2.5 text-sm font-semibold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">
+                      Uploaded
+                    </span>
+                  ) : (
+                    <label htmlFor={`file-${documentType.Id}`} className={secondaryButtonClasses}>
+                      {uploading === documentType.Name ? 'Uploading...' : 'Choose file'}
+                    </label>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
-      <div className="flex justify-between pt-6">
-        <button
-          onClick={onBack}
-          className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition"
-        >
+      <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:justify-between">
+        <Button type="button" variant="secondary" onClick={onBack}>
           Back
-        </button>
-        <button
-          onClick={onNext}
-          className="px-6 py-3 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition"
-        >
-          {nextLabel ?? 'Next'}
-        </button>
+        </Button>
+        <Button type="button" onClick={onNext}>
+          {nextLabel ? `Next: ${nextLabel}` : 'Next'}
+        </Button>
       </div>
     </div>
   );

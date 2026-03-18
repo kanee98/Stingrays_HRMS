@@ -110,13 +110,23 @@ services:
 
   super-admin-ui:
     build:
-      context: ./super-admin/frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: super-admin/frontend/Dockerfile
       args:
+        NEXT_PUBLIC_PORTAL_URL: "${NEXT_PUBLIC_PORTAL_URL:-http://${PUBLIC_HOST:-localhost}:3000}"
+        NEXT_PUBLIC_HRMS_URL: "${NEXT_PUBLIC_HRMS_URL:-http://${PUBLIC_HOST:-localhost}:3002}"
+        NEXT_PUBLIC_EMPLOYEE_UI_URL: "${NEXT_PUBLIC_EMPLOYEE_UI_URL:-http://${PUBLIC_HOST:-localhost}:3001}"
+        NEXT_PUBLIC_PAYROLL_URL: "${NEXT_PUBLIC_PAYROLL_URL:-http://${PUBLIC_HOST:-localhost}:3010}"
+        NEXT_PUBLIC_SUPER_ADMIN_URL: "${NEXT_PUBLIC_SUPER_ADMIN_URL:-http://${PUBLIC_HOST:-localhost}:3020}"
         NEXT_PUBLIC_SUPER_ADMIN_API_URL: "${NEXT_PUBLIC_SUPER_ADMIN_API_URL:-http://${PUBLIC_HOST:-localhost}:4020}"
     ports:
       - "3020:3020"
     environment:
+      NEXT_PUBLIC_PORTAL_URL: "${NEXT_PUBLIC_PORTAL_URL:-http://${PUBLIC_HOST:-localhost}:3000}"
+      NEXT_PUBLIC_HRMS_URL: "${NEXT_PUBLIC_HRMS_URL:-http://${PUBLIC_HOST:-localhost}:3002}"
+      NEXT_PUBLIC_EMPLOYEE_UI_URL: "${NEXT_PUBLIC_EMPLOYEE_UI_URL:-http://${PUBLIC_HOST:-localhost}:3001}"
+      NEXT_PUBLIC_PAYROLL_URL: "${NEXT_PUBLIC_PAYROLL_URL:-http://${PUBLIC_HOST:-localhost}:3010}"
+      NEXT_PUBLIC_SUPER_ADMIN_URL: "${NEXT_PUBLIC_SUPER_ADMIN_URL:-http://${PUBLIC_HOST:-localhost}:3020}"
       NEXT_PUBLIC_SUPER_ADMIN_API_URL: "${NEXT_PUBLIC_SUPER_ADMIN_API_URL:-http://${PUBLIC_HOST:-localhost}:4020}"
       SUPER_ADMIN_API_INTERNAL_URL: "http://super-admin-api:4020"
 
@@ -179,9 +189,9 @@ services:
       PORT: 4020
       SUPER_ADMIN_DEFAULT_CLIENT_KEY: "${NEXT_PUBLIC_DEFAULT_CLIENT_KEY:-stingrays}"
       SUPER_ADMIN_DEFAULT_CLIENT_NAME: "Stingrays"
-      SUPER_ADMIN_SEED_EMAIL: "superadmin@stingrays.com"
+      SUPER_ADMIN_SEED_EMAIL: "superadmin@fusionlabz.lk"
       SUPER_ADMIN_SEED_PASSWORD: "SuperAdmin@123"
-      SUPER_ADMIN_SEED_NAME: "Platform Super Admin"
+      SUPER_ADMIN_SEED_NAME: "FusionLabz Platform Super Admin"
     networks:
       - default
       - hrms-db

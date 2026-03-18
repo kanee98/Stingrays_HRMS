@@ -22,9 +22,22 @@ interface SectionSeed {
 
 const DEFAULT_CLIENT_KEY = process.env.SUPER_ADMIN_DEFAULT_CLIENT_KEY || "stingrays";
 const DEFAULT_CLIENT_NAME = process.env.SUPER_ADMIN_DEFAULT_CLIENT_NAME || "Stingrays";
-const DEFAULT_SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_SEED_EMAIL || "superadmin@stingrays.com";
+const LEGACY_SUPER_ADMIN_EMAIL = "superadmin@stingrays.com";
+const LEGACY_SUPER_ADMIN_NAME = "Platform Super Admin";
+const DEFAULT_SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_SEED_EMAIL || "superadmin@fusionlabz.lk";
 const DEFAULT_SUPER_ADMIN_PASSWORD = process.env.SUPER_ADMIN_SEED_PASSWORD || "SuperAdmin@123";
-const DEFAULT_SUPER_ADMIN_NAME = process.env.SUPER_ADMIN_SEED_NAME || "Platform Super Admin";
+const DEFAULT_SUPER_ADMIN_NAME = process.env.SUPER_ADMIN_SEED_NAME || "FusionLabz Platform Super Admin";
+
+interface SuperAdminUserRecord {
+  Id: number;
+  Email: string;
+  FullName: string;
+  PasswordHash: string;
+  IsActive: boolean;
+  LastLoginAt: Date | null;
+  CreatedAt: Date;
+  UpdatedAt: Date;
+}
 
 const SERVICE_SEEDS: ServiceSeed[] = [
   {
@@ -61,8 +74,9 @@ const SERVICE_SEEDS: ServiceSeed[] = [
       { key: "reports", name: "Reports", description: "Onboarding reporting", sortOrder: 5, defaultEnabled: false },
       { key: "onboarding-checklists", name: "Onboarding Checklists", description: "Checklist tracking", sortOrder: 6, defaultEnabled: false },
       { key: "document-types", name: "Document Types", description: "Supported document metadata", sortOrder: 7, defaultEnabled: false },
-      { key: "departments", name: "Departments", description: "Department management", sortOrder: 8, defaultEnabled: false },
-      { key: "onboarding-steps", name: "Onboarding Steps", description: "Step configuration", sortOrder: 9, defaultEnabled: false },
+      { key: "prospect-types", name: "Prospect Types", description: "Prospect type configuration", sortOrder: 8, defaultEnabled: false },
+      { key: "departments", name: "Departments", description: "Department management", sortOrder: 9, defaultEnabled: false },
+      { key: "onboarding-steps", name: "Onboarding Steps", description: "Step configuration", sortOrder: 10, defaultEnabled: false },
     ],
   },
   {
@@ -149,6 +163,20 @@ async function ensureSchema() {
       );
     END;
 
+    IF OBJECT_ID('ClientAdminAccounts', 'U') IS NULL
+    BEGIN
+      CREATE TABLE ClientAdminAccounts (
+        Id INT IDENTITY(1,1) PRIMARY KEY,
+        ClientId INT NOT NULL,
+        UserId INT NOT NULL,
+        CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        UpdatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        CONSTRAINT FK_ClientAdminAccounts_Clients FOREIGN KEY (ClientId) REFERENCES Clients(Id) ON DELETE CASCADE,
+        CONSTRAINT UQ_ClientAdminAccounts_ClientId UNIQUE (ClientId),
+        CONSTRAINT UQ_ClientAdminAccounts_UserId UNIQUE (UserId)
+      );
+    END;
+
     IF OBJECT_ID('ClientServiceSections', 'U') IS NULL
     BEGIN
       CREATE TABLE ClientServiceSections (
@@ -191,6 +219,77 @@ async function ensureSchema() {
         CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
         CONSTRAINT FK_SuperAdminAuditLogs_SuperAdminUsers FOREIGN KEY (UserId) REFERENCES SuperAdminUsers(Id)
       );
+    END;
+
+    IF OBJECT_ID('Roles', 'U') IS NULL
+    BEGIN
+      CREATE TABLE Roles (
+        Id INT IDENTITY(1,1) PRIMARY KEY,
+        Name NVARCHAR(50) NOT NULL UNIQUE
+      );
+    END;
+
+    IF OBJECT_ID('Users', 'U') IS NULL
+    BEGIN
+      CREATE TABLE Users (
+        Id INT IDENTITY(1,1) PRIMARY KEY,
+        Email NVARCHAR(255) NOT NULL UNIQUE,
+        FullName NVARCHAR(150) NULL,
+        PasswordHash NVARCHAR(255) NOT NULL,
+        IsActive BIT NOT NULL DEFAULT 1,
+        MustChangePassword BIT NOT NULL DEFAULT 0,
+        PasswordChangedAt DATETIME2 NULL,
+        LastPasswordResetAt DATETIME2 NULL,
+        CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        UpdatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+      );
+    END;
+
+    IF OBJECT_ID('UserRoles', 'U') IS NULL
+    BEGIN
+      CREATE TABLE UserRoles (
+        UserId INT NOT NULL,
+        RoleId INT NOT NULL,
+        PRIMARY KEY (UserId, RoleId),
+        CONSTRAINT FK_UserRoles_Users FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE,
+        CONSTRAINT FK_UserRoles_Roles FOREIGN KEY (RoleId) REFERENCES Roles(Id) ON DELETE CASCADE
+      );
+    END;
+
+    IF OBJECT_ID('Users', 'U') IS NOT NULL
+    BEGIN
+      IF COL_LENGTH('Users', 'FullName') IS NULL
+      BEGIN
+        ALTER TABLE Users ADD FullName NVARCHAR(150) NULL;
+      END;
+
+      IF COL_LENGTH('Users', 'MustChangePassword') IS NULL
+      BEGIN
+        ALTER TABLE Users ADD MustChangePassword BIT NOT NULL CONSTRAINT DF_Users_MustChangePassword_SuperAdmin DEFAULT 0 WITH VALUES;
+      END;
+
+      IF COL_LENGTH('Users', 'PasswordChangedAt') IS NULL
+      BEGIN
+        ALTER TABLE Users ADD PasswordChangedAt DATETIME2 NULL;
+      END;
+
+      IF COL_LENGTH('Users', 'LastPasswordResetAt') IS NULL
+      BEGIN
+        ALTER TABLE Users ADD LastPasswordResetAt DATETIME2 NULL;
+      END;
+
+      IF COL_LENGTH('Users', 'UpdatedAt') IS NULL
+      BEGIN
+        ALTER TABLE Users ADD UpdatedAt DATETIME2 NOT NULL CONSTRAINT DF_Users_UpdatedAt_SuperAdmin DEFAULT SYSUTCDATETIME() WITH VALUES;
+      END;
+    END;
+
+    IF OBJECT_ID('ClientAdminAccounts', 'U') IS NOT NULL
+      AND OBJECT_ID('Users', 'U') IS NOT NULL
+      AND OBJECT_ID('FK_ClientAdminAccounts_Users', 'F') IS NULL
+    BEGIN
+      ALTER TABLE ClientAdminAccounts WITH CHECK
+      ADD CONSTRAINT FK_ClientAdminAccounts_Users FOREIGN KEY (UserId) REFERENCES Users(Id) ON DELETE CASCADE;
     END;
   `);
 }
@@ -274,7 +373,20 @@ async function ensureClient(clientKey: string, name: string): Promise<number> {
       IF NOT EXISTS (SELECT 1 FROM Clients WHERE ClientKey = @clientKey)
       BEGIN
         INSERT INTO Clients (ClientKey, Name, Description, ContactEmail, Status)
-        VALUES (@clientKey, @name, 'Default platform client', 'ops@stingrays.com', 'active');
+        VALUES (@clientKey, @name, 'Default tenant workspace', 'ops@stingrays.com', 'active');
+      END
+      ELSE
+      BEGIN
+        UPDATE Clients
+        SET Description = CASE
+              WHEN Description IS NULL OR Description = 'Default platform client' THEN 'Default tenant workspace'
+              ELSE Description
+            END,
+            UpdatedAt = CASE
+              WHEN Description IS NULL OR Description = 'Default platform client' THEN SYSUTCDATETIME()
+              ELSE UpdatedAt
+            END
+        WHERE ClientKey = @clientKey;
       END
     `);
 
@@ -286,14 +398,165 @@ async function ensureClient(clientKey: string, name: string): Promise<number> {
   return Number(result.recordset[0]?.Id);
 }
 
+function shouldRefreshSuperAdminName(fullName: string | null | undefined) {
+  const normalized = (fullName || "").trim();
+  return normalized.length === 0 || normalized === LEGACY_SUPER_ADMIN_NAME;
+}
+
+function pickLatestDate(...values: Array<Date | null | undefined>): Date | null {
+  let latest: Date | null = null;
+
+  for (const value of values) {
+    if (!value) {
+      continue;
+    }
+
+    if (!latest || value.getTime() > latest.getTime()) {
+      latest = value;
+    }
+  }
+
+  return latest;
+}
+
+function chooseRetainedSuperAdminUser(
+  legacyUser: SuperAdminUserRecord,
+  canonicalUser: SuperAdminUserRecord,
+): SuperAdminUserRecord {
+  const legacyLastLogin = legacyUser.LastLoginAt?.getTime() ?? -1;
+  const canonicalLastLogin = canonicalUser.LastLoginAt?.getTime() ?? -1;
+
+  if (legacyLastLogin !== canonicalLastLogin) {
+    return legacyLastLogin > canonicalLastLogin ? legacyUser : canonicalUser;
+  }
+
+  const legacyCreatedAt = legacyUser.CreatedAt?.getTime?.() ?? 0;
+  const canonicalCreatedAt = canonicalUser.CreatedAt?.getTime?.() ?? 0;
+
+  if (legacyCreatedAt !== canonicalCreatedAt) {
+    return legacyCreatedAt <= canonicalCreatedAt ? legacyUser : canonicalUser;
+  }
+
+  return legacyUser;
+}
+
+async function rewriteSuperAdminAuditEmail(pool: sql.ConnectionPool, fromEmail: string, toEmail: string) {
+  if (!fromEmail || !toEmail || fromEmail === toEmail) {
+    return;
+  }
+
+  await pool
+    .request()
+    .input("fromEmail", sql.NVarChar, fromEmail)
+    .input("toEmail", sql.NVarChar, toEmail)
+    .query(`
+      UPDATE SuperAdminAuditLogs
+      SET EntityKey = CASE WHEN EntityKey = @fromEmail THEN @toEmail ELSE EntityKey END,
+          Summary = CASE
+            WHEN Summary LIKE '%' + @fromEmail + '%' THEN REPLACE(Summary, @fromEmail, @toEmail)
+            ELSE Summary
+          END,
+          PayloadJson = CASE
+            WHEN PayloadJson LIKE '%' + @fromEmail + '%' THEN REPLACE(PayloadJson, @fromEmail, @toEmail)
+            ELSE PayloadJson
+          END
+      WHERE EntityKey = @fromEmail
+        OR Summary LIKE '%' + @fromEmail + '%'
+        OR PayloadJson LIKE '%' + @fromEmail + '%';
+    `);
+}
+
 async function ensureSeedSuperAdminUser() {
   const pool = await poolPromise;
-  const result = await pool
+  const userResult = await pool
     .request()
+    .input("legacyEmail", sql.NVarChar, LEGACY_SUPER_ADMIN_EMAIL)
     .input("email", sql.NVarChar, DEFAULT_SUPER_ADMIN_EMAIL)
-    .query(`SELECT Id FROM SuperAdminUsers WHERE Email = @email`);
+    .query(`
+      SELECT Id, Email, FullName, PasswordHash, IsActive, LastLoginAt, CreatedAt, UpdatedAt
+      FROM SuperAdminUsers
+      WHERE Email IN (@legacyEmail, @email)
+    `);
 
-  if (result.recordset.length > 0) {
+  const users = userResult.recordset as SuperAdminUserRecord[];
+  const legacyUser = users.find((user) => user.Email.toLowerCase() === LEGACY_SUPER_ADMIN_EMAIL.toLowerCase());
+  const canonicalUser = users.find((user) => user.Email.toLowerCase() === DEFAULT_SUPER_ADMIN_EMAIL.toLowerCase());
+
+  if (legacyUser && canonicalUser) {
+    const retainedUser = chooseRetainedSuperAdminUser(legacyUser, canonicalUser);
+    const duplicateUser = retainedUser.Id === legacyUser.Id ? canonicalUser : legacyUser;
+    const retainedName = shouldRefreshSuperAdminName(retainedUser.FullName) ? DEFAULT_SUPER_ADMIN_NAME : retainedUser.FullName;
+
+    await pool
+      .request()
+      .input("retainedId", sql.Int, retainedUser.Id)
+      .input("duplicateId", sql.Int, duplicateUser.Id)
+      .query(`
+        UPDATE SuperAdminAuditLogs
+        SET UserId = @retainedId
+        WHERE UserId = @duplicateId;
+      `);
+
+    await rewriteSuperAdminAuditEmail(pool, LEGACY_SUPER_ADMIN_EMAIL, DEFAULT_SUPER_ADMIN_EMAIL);
+
+    await pool
+      .request()
+      .input("id", sql.Int, retainedUser.Id)
+      .input("email", sql.NVarChar, DEFAULT_SUPER_ADMIN_EMAIL)
+      .input("fullName", sql.NVarChar, retainedName)
+      .input("isActive", sql.Bit, retainedUser.IsActive || duplicateUser.IsActive)
+      .input("lastLoginAt", sql.DateTime2, pickLatestDate(retainedUser.LastLoginAt, duplicateUser.LastLoginAt))
+      .query(`
+        UPDATE SuperAdminUsers
+        SET Email = @email,
+            FullName = @fullName,
+            IsActive = @isActive,
+            LastLoginAt = @lastLoginAt,
+            UpdatedAt = SYSUTCDATETIME()
+        WHERE Id = @id
+      `);
+
+    await pool
+      .request()
+      .input("id", sql.Int, duplicateUser.Id)
+      .query(`DELETE FROM SuperAdminUsers WHERE Id = @id`);
+
+    return;
+  }
+
+  if (legacyUser) {
+    await rewriteSuperAdminAuditEmail(pool, LEGACY_SUPER_ADMIN_EMAIL, DEFAULT_SUPER_ADMIN_EMAIL);
+
+    await pool
+      .request()
+      .input("id", sql.Int, legacyUser.Id)
+      .input("email", sql.NVarChar, DEFAULT_SUPER_ADMIN_EMAIL)
+      .input("fullName", sql.NVarChar, shouldRefreshSuperAdminName(legacyUser.FullName) ? DEFAULT_SUPER_ADMIN_NAME : legacyUser.FullName)
+      .query(`
+        UPDATE SuperAdminUsers
+        SET Email = @email,
+            FullName = @fullName,
+            UpdatedAt = SYSUTCDATETIME()
+        WHERE Id = @id
+      `);
+
+    return;
+  }
+
+  if (canonicalUser) {
+    if (shouldRefreshSuperAdminName(canonicalUser.FullName)) {
+      await pool
+        .request()
+        .input("id", sql.Int, canonicalUser.Id)
+        .input("fullName", sql.NVarChar, DEFAULT_SUPER_ADMIN_NAME)
+        .query(`
+          UPDATE SuperAdminUsers
+          SET FullName = @fullName,
+              UpdatedAt = SYSUTCDATETIME()
+          WHERE Id = @id
+        `);
+    }
+
     return;
   }
 

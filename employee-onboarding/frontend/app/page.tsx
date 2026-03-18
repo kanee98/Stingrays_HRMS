@@ -1,118 +1,67 @@
 'use client';
 
+import Link from 'next/link';
 import { getHrmsAppUrl } from '@shared/services/platformUrls';
+import { ActionCard } from '@shared/components/ActionCard';
+import { MetricCard } from '@shared/components/MetricCard';
+import { PageHeader } from '@shared/components/PageHeader';
+import { SectionCard } from '@shared/components/SectionCard';
+import { primaryButtonClasses, secondaryButtonClasses } from '@shared/lib/ui';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { DashboardLayout } from './components/DashboardLayout';
 import { useAuth } from './contexts/AuthContext';
-import Link from 'next/link';
+
+function Icon({ path }: { path: string }) {
+  return (
+    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d={path} />
+    </svg>
+  );
+}
 
 function DashboardHome() {
   const { user } = useAuth();
 
   return (
-    <div className="p-6 lg:p-8">
-      <div className="mb-8">
-        <h2 className="text-3xl font-bold text-[var(--foreground)]">Employee Onboarding</h2>
-        <p className="mt-2 text-[var(--muted)]">Welcome back, {user?.email}</p>
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Talent Transition"
+        title="Employee onboarding"
+        description="Guide prospects through onboarding, documents, and readiness checks using the same UX framework as HRMS and payroll."
+        meta={<span>Welcome back, {user?.email}</span>}
+        actions={
+          <>
+            <a href={getHrmsAppUrl()} className={secondaryButtonClasses}>Back to HRMS</a>
+            <Link href="/onboarding" className={primaryButtonClasses}>Start onboarding</Link>
+          </>
+        }
+      />
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <MetricCard label="Prospects" value="0" helper="Candidates currently tracked" tone="primary" icon={<Icon path="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />} />
+        <MetricCard label="In progress" value="0" helper="Onboarding journeys still active" tone="warning" icon={<Icon path="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />} />
+        <MetricCard label="Completed" value="0" helper="Journeys ready to transition into HRMS" tone="success" icon={<Icon path="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />} />
+        <MetricCard label="Pending docs" value="0" helper="Outstanding document collection work" tone="info" icon={<Icon path="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />} />
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="bg-[var(--surface)] rounded-[var(--radius)] shadow-[var(--shadow)] p-6 border border-[var(--surface-border)]">
-          <div className="flex items-center">
-            <div className="flex-shrink-0 bg-[var(--primary-muted)] rounded-[var(--radius)] p-3">
-              <svg className="w-6 h-6 text-[var(--primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-[var(--muted)]">Total Prospects</p>
-              <p className="text-2xl font-bold text-[var(--foreground)]">0</p>
-            </div>
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr)_minmax(320px,0.9fr)]">
+        <SectionCard eyebrow="Quick Actions" title="Move candidates through onboarding" description="Use the same shared action-card pattern as the other modules to keep navigation predictable.">
+          <div className="grid gap-3 md:grid-cols-2">
+            <ActionCard title="Start employee onboarding" description="Launch a new onboarding workflow for an incoming hire." href="/onboarding" />
+            <ActionCard title="Review prospects" description="Track active candidates and checklist completion." href="/prospects" />
+            <ActionCard title="Manage templates" description="Maintain the documents used in onboarding workflows." href="/templates" />
+            <ActionCard title="Open checklists" description="Standardize readiness and handoff tasks." href="/checklists" />
           </div>
-        </div>
-        <div className="bg-[var(--surface)] rounded-[var(--radius)] shadow-[var(--shadow)] p-6 border border-[var(--surface-border)]">
-          <div className="flex items-center">
-            <div className="flex-shrink-0 bg-amber-100 rounded-[var(--radius)] p-3">
-              <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-[var(--muted)]">In Progress</p>
-              <p className="text-2xl font-bold text-[var(--foreground)]">0</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-[var(--surface)] rounded-[var(--radius)] shadow-[var(--shadow)] p-6 border border-[var(--surface-border)]">
-          <div className="flex items-center">
-            <div className="flex-shrink-0 bg-green-100 rounded-[var(--radius)] p-3">
-              <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-[var(--muted)]">Completed</p>
-              <p className="text-2xl font-bold text-[var(--foreground)]">0</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-[var(--surface)] rounded-[var(--radius)] shadow-[var(--shadow)] p-6 border border-[var(--surface-border)]">
-          <div className="flex items-center">
-            <div className="flex-shrink-0 bg-blue-100 rounded-[var(--radius)] p-3">
-              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-[var(--muted)]">Pending Docs</p>
-              <p className="text-2xl font-bold text-[var(--foreground)]">0</p>
-            </div>
-          </div>
-        </div>
-      </div>
+        </SectionCard>
 
-      {/* Quick Actions */}
-      <div className="bg-[var(--surface)] rounded-[var(--radius)] shadow-[var(--shadow)] border border-[var(--surface-border)] p-6">
-        <h3 className="text-lg font-semibold text-[var(--foreground)] mb-4">Quick Actions</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Link
-            href="/onboarding"
-            className="flex items-center p-4 border border-[var(--surface-border)] rounded-[var(--radius)] hover:border-[var(--primary)] hover:bg-[var(--primary-muted)] transition"
-          >
-            <svg className="w-5 h-5 text-[var(--primary)] mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            <span className="text-[var(--foreground)] font-medium">Start Employee Onboarding</span>
-          </Link>
-          <Link
-            href="/prospects"
-            className="flex items-center p-4 border border-[var(--surface-border)] rounded-[var(--radius)] hover:border-[var(--primary)] hover:bg-[var(--primary-muted)] transition"
-          >
-            <svg className="w-5 h-5 text-[var(--primary)] mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-            </svg>
-            <span className="text-[var(--foreground)] font-medium">View Prospects</span>
-          </Link>
-          <Link
-            href="/templates"
-            className="flex items-center p-4 border border-[var(--surface-border)] rounded-[var(--radius)] hover:border-[var(--primary)] hover:bg-[var(--primary-muted)] transition"
-          >
-            <svg className="w-5 h-5 text-[var(--primary)] mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <span className="text-[var(--foreground)] font-medium">Document Templates</span>
-          </Link>
-          <a
-            href={getHrmsAppUrl()}
-            className="flex items-center p-4 border border-[var(--surface-border)] rounded-[var(--radius)] hover:border-[var(--primary)] hover:bg-[var(--primary-muted)] transition"
-          >
-            <svg className="w-5 h-5 text-[var(--primary)] mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-            </svg>
-            <span className="text-[var(--foreground)] font-medium">Back to HRMS Dashboard</span>
-          </a>
-        </div>
+        <SectionCard eyebrow="Shared UX" title="One platform language" description="Onboarding now uses the same structural page components as HRMS and payroll.">
+          <div className="grid gap-3">
+            <ActionCard title="Configure step visibility" description="Control optional workflow stages without leaving the shared settings layout." href="/settings/onboarding" actionLabel="Open settings" />
+            <ActionCard title="Manage prospect types" description="Control the prospect catalog and Excel import mappings used by the recruitment pipeline." href="/settings/prospect-types" actionLabel="Open settings" />
+            <ActionCard title="Manage departments" description="Keep onboarding department lists aligned with the employee intake flow." href="/settings/departments" actionLabel="Open settings" />
+            <ActionCard title="Manage document types" description="Update required upload categories using the same settings page pattern." href="/settings/document-types" actionLabel="Open settings" />
+          </div>
+        </SectionCard>
       </div>
     </div>
   );
