@@ -149,14 +149,14 @@ export function AppNavbar({ variant, user = null, onLogout }: AppNavbarProps) {
             <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-[var(--surface-strong)] text-sm font-semibold tracking-[0.3em] text-[var(--surface-strong-foreground)]">
-                  FL
+                  SP
                 </div>
                 <div className="min-w-0">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--muted)]">
-                    FusionLabz Platform
+                    Stingrays Platform
                   </p>
                   <p className="truncate text-lg font-semibold text-[var(--foreground)]">
-                    Unified workforce operations
+                    Unified Workforce Operations
                   </p>
                 </div>
               </div>

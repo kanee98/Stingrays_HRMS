@@ -156,7 +156,7 @@ export function AppNavbar({ variant, user = null, onLogout }: AppNavbarProps) {
                     FusionLabz Platform
                   </p>
                   <p className="truncate text-lg font-semibold text-[var(--foreground)]">
-                    Unified workforce operations
+                    Unified Workforce Operations
                   </p>
                 </div>
               </div>
