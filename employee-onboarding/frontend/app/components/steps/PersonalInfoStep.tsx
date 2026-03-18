@@ -26,6 +26,8 @@ interface PersonalInfoStepProps {
   };
   onSubmit: (data: PersonalInfoStepProps['data']) => void;
   loading: boolean;
+  /** True when editing an existing employee (e.g. user came back to this step). */
+  isEditing?: boolean;
 }
 
 interface DepartmentOption {
@@ -33,7 +35,7 @@ interface DepartmentOption {
   Name: string;
 }
 
-export function PersonalInfoStep({ data, onSubmit, loading }: PersonalInfoStepProps) {
+export function PersonalInfoStep({ data, onSubmit, loading, isEditing = false }: PersonalInfoStepProps) {
   const [formData, setFormData] = useState(data);
   const [departments, setDepartments] = useState<DepartmentOption[]>([]);
 
@@ -71,7 +73,9 @@ export function PersonalInfoStep({ data, onSubmit, loading }: PersonalInfoStepPr
     <form onSubmit={handleSubmit} className="space-y-6">
       <div>
         <h3 className="text-2xl font-semibold text-[var(--foreground)]">Personal information</h3>
-        <p className="mt-2 text-sm text-[var(--muted)]">Create the employee record that anchors the rest of the onboarding journey.</p>
+        <p className="mt-2 text-sm text-[var(--muted)]">
+          {isEditing ? 'Update the employee record. You can return to this step anytime from the progress stepper.' : 'Create the employee record that anchors the rest of the onboarding journey.'}
+        </p>
       </div>
 
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -141,7 +145,7 @@ export function PersonalInfoStep({ data, onSubmit, loading }: PersonalInfoStepPr
 
       <div className="flex justify-end pt-2">
         <Button type="submit" disabled={loading}>
-          {loading ? 'Saving...' : 'Next: documents'}
+          {loading ? 'Saving...' : isEditing ? 'Update and continue' : 'Next: documents'}
         </Button>
       </div>
     </form>

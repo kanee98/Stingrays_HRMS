@@ -537,6 +537,19 @@ router.post('/delete-selected', async (req, res) => {
   }
 });
 
+/**
+ * Parse date for SQL Server (YYYY-MM-DD or ISO string); returns null if invalid.
+ */
+function parseDateForDb(value) {
+  if (value == null || value === '') return null;
+  const s = String(value).trim();
+  if (!s) return null;
+  const match = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) return `${match[1]}-${match[2]}-${match[3]}`;
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+}
+
 router.post('/:id/to-employee', async (req, res) => {
   try {
     const pool = await getPool();
@@ -544,29 +557,67 @@ router.post('/:id/to-employee', async (req, res) => {
       .request()
       .input('id', sql.Int, req.params.id)
       .query(`
-        SELECT Id, FirstName, LastName, FullName, Email, Phone
+        SELECT Id, FirstName, LastName, FullName, Email, Phone, DateOfBirth
         FROM Prospects WHERE Id = @id AND ConvertedToEmployeeId IS NULL
       ` + WHERE_NOT_DELETED);
     if (prospectResult.recordset.length === 0) {
       return res.status(404).json({ error: 'Prospect not found or already converted to employee' });
     }
     const p = prospectResult.recordset[0];
-    const firstName = p.FirstName || (p.FullName ? splitName(p.FullName).firstName : '');
-    const lastName = p.LastName || (p.FullName ? splitName(p.FullName).lastName : '');
-    const email = p.Email || `prospect-${p.Id}@stingrays.local`;
+    const firstName = truncate(p.FirstName || (p.FullName ? splitName(p.FullName).firstName : ''), 100) || null;
+    const lastName = truncate(p.LastName || (p.FullName ? splitName(p.FullName).lastName : ''), 100) || null;
+    const email = (p.Email && toTrimmedString(p.Email)) || `prospect-${p.Id}@stingrays.local`;
+    const phone = (p.Phone && toTrimmedString(p.Phone)) ? truncate(p.Phone, 20) : null;
+    const dob = parseDateForDb(p.DateOfBirth);
 
     const empResult = await pool
       .request()
-      .input('firstName', sql.NVarChar, truncate(firstName, 100) || null)
-      .input('lastName', sql.NVarChar, truncate(lastName, 100) || null)
+      .input('firstName', sql.NVarChar, firstName)
+      .input('lastName', sql.NVarChar, lastName)
       .input('email', sql.NVarChar, email)
+      .input('dob', sql.Date, dob)
+      .input('phone', sql.NVarChar, phone)
       .query(`
-        INSERT INTO Employees (FirstName, LastName, Email, NIC, Phone, Address, City, PostalCode,
-          Position, Department, EmergencyContactName, EmergencyContactPhone, OnboardingStatus, IsActive)
+        INSERT INTO Employees (
+          FirstName, LastName, Email, DOB, NIC, Phone, Address, City, PostalCode,
+          Position, Department, EmergencyContactName, EmergencyContactPhone, OnboardingStatus, IsActive
+        )
         OUTPUT INSERTED.Id
-        VALUES (@firstName, @lastName, @email, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'pending', 1)
+        VALUES (
+          @firstName, @lastName, @email, @dob, NULL, @phone, NULL, NULL, NULL,
+          NULL, NULL, NULL, NULL, 'pending', 1
+        )
       `);
     const employeeId = empResult.recordset[0].Id;
+
+    // Create onboarding checklist items so the onboarding flow has the same structure as a manually created employee
+    await pool
+      .request()
+      .input('employeeId', sql.Int, employeeId)
+      .input('itemName', sql.NVarChar, 'Personal Information')
+      .input('itemType', sql.NVarChar, 'information')
+      .input('isRequired', sql.Bit, 1)
+      .query(`
+        INSERT INTO OnboardingChecklist (EmployeeId, ItemName, ItemType, IsRequired)
+        VALUES (@employeeId, @itemName, @itemType, @isRequired)
+      `);
+
+    const docTypesResult = await pool.request().query(`
+      SELECT Name, IsRequired FROM OnboardingDocumentTypes WHERE IsActive = 1 ORDER BY SortOrder ASC, Id ASC
+    `);
+    for (const row of docTypesResult.recordset) {
+      await pool
+        .request()
+        .input('employeeId', sql.Int, employeeId)
+        .input('itemName', sql.NVarChar, row.Name)
+        .input('itemType', sql.NVarChar, 'document')
+        .input('isRequired', sql.Bit, row.IsRequired ? 1 : 0)
+        .query(`
+          INSERT INTO OnboardingChecklist (EmployeeId, ItemName, ItemType, IsRequired)
+          VALUES (@employeeId, @itemName, @itemType, @isRequired)
+        `);
+    }
+
     await pool
       .request()
       .input('prospectId', sql.Int, req.params.id)
@@ -580,7 +631,25 @@ router.post('/:id/to-employee', async (req, res) => {
     });
   } catch (error) {
     console.error('Error converting prospect to employee:', error);
-    res.status(500).json({ error: 'Failed to create employee from prospect' });
+
+    const code = error.code || error.number;
+    const message = (error.message || '').toLowerCase();
+    const isUniqueViolation =
+      code === 2627 ||
+      code === 2601 ||
+      message.includes('unique') ||
+      message.includes('duplicate key');
+
+    if (isUniqueViolation) {
+      return res.status(409).json({
+        error: 'An employee with this email already exists. Use a different prospect or update the existing employee.',
+      });
+    }
+
+    res.status(500).json({
+      error: 'Failed to create employee from prospect',
+      detail: process.env.NODE_ENV === 'development' ? (error.message || String(error)) : undefined,
+    });
   }
 });
 

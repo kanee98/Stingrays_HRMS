@@ -159,7 +159,10 @@ export default function ProspectChecklistPage() {
     try {
       const res = await fetch(`${API_URL}/api/prospects/${id}/to-employee`, { method: 'POST' });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || 'Failed to start onboarding');
+      if (!res.ok) {
+        const message = data.detail ? `${data.error || 'Failed to start onboarding'}: ${data.detail}` : (data.error || 'Failed to start onboarding');
+        throw new Error(message);
+      }
       router.push(`/onboarding?employeeId=${data.employeeId}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to start onboarding');

@@ -70,6 +70,49 @@ router.get('/document-types', async (req, res) => {
   }
 });
 
+// Active document types with their fields (for onboarding Documents step)
+router.get('/document-types/with-fields', async (req, res) => {
+  try {
+    const pool = await getPool();
+    const typesResult = await pool.request().query(`
+      SELECT Id, Name, IsRequired, SortOrder, Description
+      FROM OnboardingDocumentTypes
+      WHERE IsActive = 1
+      ORDER BY SortOrder ASC, Id ASC
+    `);
+    const fieldsResult = await pool.request().query(`
+      SELECT Id, DocumentTypeId, FieldKey, Label, FieldType, IsRequired, SortOrder
+      FROM OnboardingDocumentTypeFields
+      ORDER BY DocumentTypeId, SortOrder ASC, Id ASC
+    `);
+    const fieldsByTypeId = {};
+    for (const row of fieldsResult.recordset) {
+      const id = row.DocumentTypeId;
+      if (!fieldsByTypeId[id]) fieldsByTypeId[id] = [];
+      fieldsByTypeId[id].push({
+        Id: row.Id,
+        FieldKey: row.FieldKey,
+        Label: row.Label,
+        FieldType: row.FieldType,
+        IsRequired: !!row.IsRequired,
+        SortOrder: row.SortOrder,
+      });
+    }
+    const types = typesResult.recordset.map((t) => ({
+      Id: t.Id,
+      Name: t.Name,
+      IsRequired: !!t.IsRequired,
+      SortOrder: t.SortOrder,
+      Description: t.Description,
+      Fields: fieldsByTypeId[t.Id] || [],
+    }));
+    res.json(types);
+  } catch (error) {
+    console.error('Error fetching document types with fields:', error);
+    res.status(500).json({ error: 'Failed to fetch document types with fields' });
+  }
+});
+
 router.get('/document-types/all', async (req, res) => {
   try {
     const pool = await getPool();
@@ -176,6 +219,158 @@ router.delete('/document-types/:id', async (req, res) => {
   } catch (error) {
     console.error('Error deactivating document type:', error);
     res.status(500).json({ error: 'Failed to deactivate document type' });
+  }
+});
+
+const DOCUMENT_FIELD_TYPES = ['text', 'tel', 'date', 'file'];
+
+router.get('/document-types/:id/fields', async (req, res) => {
+  try {
+    const pool = await getPool();
+    const id = parseInt(req.params.id, 10);
+    if (Number.isNaN(id)) return res.status(400).json({ error: 'Invalid document type id' });
+    const result = await pool
+      .request()
+      .input('id', sql.Int, id)
+      .query(`
+        SELECT Id, DocumentTypeId, FieldKey, Label, FieldType, IsRequired, SortOrder
+        FROM OnboardingDocumentTypeFields
+        WHERE DocumentTypeId = @id
+        ORDER BY SortOrder ASC, Id ASC
+      `);
+    const fields = result.recordset.map((r) => ({
+      Id: r.Id,
+      DocumentTypeId: r.DocumentTypeId,
+      FieldKey: r.FieldKey,
+      Label: r.Label,
+      FieldType: r.FieldType,
+      IsRequired: !!r.IsRequired,
+      SortOrder: r.SortOrder,
+    }));
+    res.json(fields);
+  } catch (error) {
+    console.error('Error fetching document type fields:', error);
+    res.status(500).json({ error: 'Failed to fetch document type fields' });
+  }
+});
+
+router.post('/document-types/:id/fields', async (req, res) => {
+  try {
+    const pool = await getPool();
+    const documentTypeId = parseInt(req.params.id, 10);
+    if (Number.isNaN(documentTypeId)) return res.status(400).json({ error: 'Invalid document type id' });
+    const { fieldKey, label, fieldType, isRequired = false, sortOrder = 0 } = req.body;
+    if (!fieldKey || typeof fieldKey !== 'string' || !fieldKey.trim()) {
+      return res.status(400).json({ error: 'fieldKey is required' });
+    }
+    if (!label || typeof label !== 'string' || !label.trim()) {
+      return res.status(400).json({ error: 'label is required' });
+    }
+    const type = (fieldType && typeof fieldType === 'string' ? fieldType : 'text').toLowerCase();
+    if (!DOCUMENT_FIELD_TYPES.includes(type)) {
+      return res.status(400).json({ error: 'fieldType must be one of: ' + DOCUMENT_FIELD_TYPES.join(', ') });
+    }
+    const key = fieldKey.trim().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+    if (!key) return res.status(400).json({ error: 'fieldKey must contain at least one alphanumeric character' });
+    const check = await pool
+      .request()
+      .input('documentTypeId', sql.Int, documentTypeId)
+      .query('SELECT Id FROM OnboardingDocumentTypes WHERE Id = @documentTypeId');
+    if (check.recordset.length === 0) {
+      return res.status(404).json({ error: 'Document type not found' });
+    }
+    const result = await pool
+      .request()
+      .input('documentTypeId', sql.Int, documentTypeId)
+      .input('fieldKey', sql.NVarChar, key)
+      .input('label', sql.NVarChar, label.trim())
+      .input('fieldType', sql.NVarChar, type)
+      .input('isRequired', sql.Bit, isRequired ? 1 : 0)
+      .input('sortOrder', sql.Int, toNonNegativeInt(sortOrder))
+      .query(`
+        INSERT INTO OnboardingDocumentTypeFields (DocumentTypeId, FieldKey, Label, FieldType, IsRequired, SortOrder)
+        VALUES (@documentTypeId, @fieldKey, @label, @fieldType, @isRequired, @sortOrder);
+        SELECT SCOPE_IDENTITY() AS Id;
+      `);
+    const id = parseInt(result.recordset[0].Id, 10);
+    res.status(201).json({ id, message: 'Document type field created' });
+  } catch (error) {
+    console.error('Error creating document type field:', error);
+    res.status(500).json({ error: 'Failed to create document type field' });
+  }
+});
+
+router.put('/document-types/fields/:fieldId', async (req, res) => {
+  try {
+    const pool = await getPool();
+    const fieldId = parseInt(req.params.fieldId, 10);
+    if (Number.isNaN(fieldId)) return res.status(400).json({ error: 'Invalid field id' });
+    const { fieldKey, label, fieldType, isRequired, sortOrder } = req.body;
+    const updates = [];
+    const request = pool.request().input('fieldId', sql.Int, fieldId);
+    if (fieldKey !== undefined && typeof fieldKey === 'string' && fieldKey.trim()) {
+      const key = fieldKey.trim().replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+      if (key) {
+        updates.push('FieldKey = @fieldKey');
+        request.input('fieldKey', sql.NVarChar, key);
+      }
+    }
+    if (label !== undefined && typeof label === 'string') {
+      updates.push('Label = @label');
+      request.input('label', sql.NVarChar, label.trim());
+    }
+    if (fieldType !== undefined && typeof fieldType === 'string') {
+      const type = fieldType.toLowerCase();
+      if (DOCUMENT_FIELD_TYPES.includes(type)) {
+        updates.push('FieldType = @fieldType');
+        request.input('fieldType', sql.NVarChar, type);
+      }
+    }
+    if (typeof isRequired === 'boolean') {
+      updates.push('IsRequired = @isRequired');
+      request.input('isRequired', sql.Bit, isRequired ? 1 : 0);
+    }
+    if (sortOrder !== undefined && Number.isInteger(parseInt(sortOrder, 10))) {
+      updates.push('SortOrder = @sortOrder');
+      request.input('sortOrder', sql.Int, parseInt(sortOrder, 10));
+    }
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+    updates.push('UpdatedAt = GETDATE()');
+    const result = await request.query(`
+      UPDATE OnboardingDocumentTypeFields SET ${updates.join(', ')} WHERE Id = @fieldId;
+      SELECT @@ROWCOUNT AS updated;
+    `);
+    if (result.recordset[0].updated === 0) {
+      return res.status(404).json({ error: 'Document type field not found' });
+    }
+    res.json({ message: 'Document type field updated' });
+  } catch (error) {
+    console.error('Error updating document type field:', error);
+    res.status(500).json({ error: 'Failed to update document type field' });
+  }
+});
+
+router.delete('/document-types/fields/:fieldId', async (req, res) => {
+  try {
+    const pool = await getPool();
+    const fieldId = parseInt(req.params.fieldId, 10);
+    if (Number.isNaN(fieldId)) return res.status(400).json({ error: 'Invalid field id' });
+    const result = await pool
+      .request()
+      .input('fieldId', sql.Int, fieldId)
+      .query(`
+        DELETE FROM OnboardingDocumentTypeFields WHERE Id = @fieldId;
+        SELECT @@ROWCOUNT AS deleted;
+      `);
+    if (result.recordset[0].deleted === 0) {
+      return res.status(404).json({ error: 'Document type field not found' });
+    }
+    res.json({ message: 'Document type field deleted' });
+  } catch (error) {
+    console.error('Error deleting document type field:', error);
+    res.status(500).json({ error: 'Failed to delete document type field' });
   }
 });
 

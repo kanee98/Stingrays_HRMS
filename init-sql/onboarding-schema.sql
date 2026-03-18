@@ -111,6 +111,38 @@ BEGIN
 END
 GO
 
+-- Add MetadataJson to OnboardingDocuments for dynamic document field values
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID('OnboardingDocuments') AND name = 'MetadataJson')
+BEGIN
+    ALTER TABLE OnboardingDocuments ADD MetadataJson NVARCHAR(MAX) NULL;
+    PRINT 'OnboardingDocuments.MetadataJson added';
+END
+GO
+
+-- Create OnboardingDocumentTypeFields table (dynamic fields per document type, Gramasevaka-style template)
+IF OBJECT_ID('OnboardingDocumentTypeFields', 'U') IS NULL
+BEGIN
+    CREATE TABLE OnboardingDocumentTypeFields (
+        Id INT IDENTITY(1,1) PRIMARY KEY,
+        DocumentTypeId INT NOT NULL,
+        FieldKey NVARCHAR(100) NOT NULL,
+        Label NVARCHAR(200) NOT NULL,
+        FieldType NVARCHAR(50) NOT NULL,
+        IsRequired BIT NOT NULL DEFAULT 0,
+        SortOrder INT NOT NULL DEFAULT 0,
+        CreatedAt DATETIME DEFAULT GETDATE(),
+        UpdatedAt DATETIME NULL,
+        CONSTRAINT FK_OnboardingDocumentTypeFields_DocumentType FOREIGN KEY (DocumentTypeId) REFERENCES OnboardingDocumentTypes(Id) ON DELETE CASCADE
+    );
+    CREATE INDEX IX_OnboardingDocumentTypeFields_DocumentTypeId ON OnboardingDocumentTypeFields(DocumentTypeId);
+    PRINT 'Table OnboardingDocumentTypeFields created';
+END
+ELSE
+BEGIN
+    PRINT 'Table OnboardingDocumentTypeFields already exists';
+END
+GO
+
 -- Create GramasevakaDetails table
 IF OBJECT_ID('GramasevakaDetails', 'U') IS NULL
 BEGIN

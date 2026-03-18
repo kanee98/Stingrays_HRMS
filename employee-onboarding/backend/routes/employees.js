@@ -4,6 +4,49 @@ const { getPool, sql } = require('../config/db');
 const upload = require('../config/upload');
 const path = require('path');
 
+const PERSONAL_INFO_CHECKLIST_ITEM = 'Personal Information';
+const REQUIRED_PERSONAL_INFO_FIELDS = [
+  'firstName',
+  'lastName',
+  'email',
+  'dob',
+  'nic',
+  'phone',
+  'address',
+  'city',
+  'postalCode',
+  'position',
+  'department',
+  'emergencyContactName',
+  'emergencyContactPhone',
+];
+
+function hasNonEmptyValue(value) {
+  return value != null && String(value).trim() !== '';
+}
+
+function isPersonalInfoComplete(payload) {
+  return REQUIRED_PERSONAL_INFO_FIELDS.every((field) => hasNonEmptyValue(payload[field]));
+}
+
+async function syncPersonalInfoChecklist(pool, employeeId, payload) {
+  const isCompleted = isPersonalInfoComplete(payload);
+  await pool
+    .request()
+    .input('employeeId', sql.Int, employeeId)
+    .input('itemName', sql.NVarChar, PERSONAL_INFO_CHECKLIST_ITEM)
+    .input('isCompleted', sql.Bit, isCompleted ? 1 : 0)
+    .query(`
+      UPDATE OnboardingChecklist
+      SET IsCompleted = @isCompleted,
+          CompletedAt = CASE
+            WHEN @isCompleted = 1 THEN ISNULL(CompletedAt, GETDATE())
+            ELSE NULL
+          END
+      WHERE EmployeeId = @employeeId AND ItemName = @itemName
+    `);
+}
+
 // Get all employees
 router.get('/', async (req, res) => {
   try {
@@ -51,7 +94,7 @@ router.get('/:id', async (req, res) => {
     const docsResult = await pool
       .request()
       .input('id', sql.Int, req.params.id)
-      .query('SELECT * FROM OnboardingDocuments WHERE EmployeeId = @id ORDER BY UploadedAt DESC');
+      .query('SELECT Id, EmployeeId, DocumentType, FileName, FilePath, FileSize, MimeType, UploadedAt, MetadataJson FROM OnboardingDocuments WHERE EmployeeId = @id ORDER BY UploadedAt DESC');
 
     // Get checklist
     const checklistResult = await pool
@@ -127,7 +170,7 @@ router.post('/', async (req, res) => {
     await pool
       .request()
       .input('employeeId', sql.Int, employeeId)
-      .input('itemName', sql.NVarChar, 'Personal Information')
+      .input('itemName', sql.NVarChar, PERSONAL_INFO_CHECKLIST_ITEM)
       .input('itemType', sql.NVarChar, 'information')
       .input('isRequired', sql.Bit, 1)
       .query(`
@@ -151,6 +194,22 @@ router.post('/', async (req, res) => {
           VALUES (@employeeId, @itemName, @itemType, @isRequired)
         `);
     }
+
+    await syncPersonalInfoChecklist(pool, employeeId, {
+      firstName,
+      lastName,
+      email,
+      dob,
+      nic,
+      phone,
+      address,
+      city,
+      postalCode,
+      position,
+      department,
+      emergencyContactName,
+      emergencyContactPhone,
+    });
 
     res.status(201).json({ id: employeeId, message: 'Employee created successfully' });
   } catch (error) {
@@ -218,6 +277,23 @@ router.put('/:id', async (req, res) => {
     if (result.recordset[0].updated === 0) {
       return res.status(404).json({ error: 'Employee not found' });
     }
+
+    await syncPersonalInfoChecklist(pool, req.params.id, {
+      firstName,
+      lastName,
+      email,
+      dob,
+      nic,
+      phone,
+      address,
+      city,
+      postalCode,
+      position,
+      department,
+      emergencyContactName,
+      emergencyContactPhone,
+    });
+
     res.json({ message: 'Employee updated successfully' });
   } catch (error) {
     console.error('Error updating employee:', error);
@@ -252,15 +328,31 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// Upload document
+// Ensure OnboardingDocuments.MetadataJson column exists (for dynamic document field values).
+async function ensureMetadataJsonColumn(pool) {
+  try {
+    const tableCheck = await pool.request().query(
+      "SELECT OBJECT_ID('OnboardingDocuments', 'U') AS TableId"
+    );
+    if (tableCheck.recordset[0]?.TableId == null) return;
+    const colCheck = await pool.request().query(`
+      SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_NAME = 'OnboardingDocuments' AND COLUMN_NAME = 'MetadataJson'
+    `);
+    if (colCheck.recordset.length > 0) return;
+    await pool.request().query(`
+      ALTER TABLE OnboardingDocuments ADD MetadataJson NVARCHAR(MAX) NULL
+    `);
+  } catch (err) {
+    console.error('ensureMetadataJsonColumn:', err.message);
+  }
+}
+
+// Upload document (with optional field metadata from dynamic document type fields)
 router.post('/:id/documents', upload.single('document'), async (req, res) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
-
     const pool = await getPool();
-    const { documentType } = req.body;
+    const { documentType, fieldValues } = req.body;
     if (!documentType || typeof documentType !== 'string' || !documentType.trim()) {
       return res.status(400).json({ error: 'documentType is required' });
     }
@@ -268,30 +360,79 @@ router.post('/:id/documents', upload.single('document'), async (req, res) => {
 
     // Validate against active OnboardingDocumentTypes
     const typesResult = await pool.request().query(
-      'SELECT Name FROM OnboardingDocumentTypes WHERE IsActive = 1'
+      'SELECT Id, Name FROM OnboardingDocumentTypes WHERE IsActive = 1'
     );
-    const allowedNames = typesResult.recordset.map((r) => r.Name);
-    if (!allowedNames.includes(docTypeName)) {
+    const typeRow = typesResult.recordset.find((r) => r.Name === docTypeName);
+    if (!typeRow) {
       return res.status(400).json({
-        error: 'Invalid document type. Must be one of: ' + allowedNames.join(', '),
+        error: 'Invalid document type. Must be one of: ' + typesResult.recordset.map((r) => r.Name).join(', '),
       });
     }
 
-    const filePath = `/uploads/${req.file.fieldname}/${req.file.filename}`;
+    let metadataJson = null;
+    if (fieldValues !== undefined && fieldValues !== null && fieldValues !== '') {
+      try {
+        const parsed = typeof fieldValues === 'string' ? JSON.parse(fieldValues) : fieldValues;
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          metadataJson = JSON.stringify(parsed);
+        }
+      } catch (_) {
+        // ignore invalid JSON
+      }
+    }
 
-    await pool
+    if (metadataJson !== null) {
+      await ensureMetadataJsonColumn(pool);
+    }
+
+    const existingDocResult = await pool
       .request()
       .input('employeeId', sql.Int, req.params.id)
       .input('documentType', sql.NVarChar, docTypeName)
-      .input('fileName', sql.NVarChar, req.file.originalname)
-      .input('filePath', sql.NVarChar, filePath)
-      .input('fileSize', sql.Int, req.file.size)
-      .input('mimeType', sql.NVarChar, req.file.mimetype)
       .query(`
-        INSERT INTO OnboardingDocuments 
-        (EmployeeId, DocumentType, FileName, FilePath, FileSize, MimeType)
-        VALUES (@employeeId, @documentType, @fileName, @filePath, @fileSize, @mimeType)
+        SELECT TOP 1 Id
+        FROM OnboardingDocuments
+        WHERE EmployeeId = @employeeId AND DocumentType = @documentType
+        ORDER BY UploadedAt DESC, Id DESC
       `);
+    const existingDocId = existingDocResult.recordset[0]?.Id ?? null;
+
+    if (!req.file && existingDocId == null) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    if (req.file) {
+      const filePath = `/uploads/${req.file.fieldname}/${req.file.filename}`;
+      const insertRequest = pool
+        .request()
+        .input('employeeId', sql.Int, req.params.id)
+        .input('documentType', sql.NVarChar, docTypeName)
+        .input('fileName', sql.NVarChar, req.file.originalname)
+        .input('filePath', sql.NVarChar, filePath)
+        .input('fileSize', sql.Int, req.file.size)
+        .input('mimeType', sql.NVarChar, req.file.mimetype);
+      if (metadataJson !== null) {
+        insertRequest.input('metadataJson', sql.NVarChar(sql.MAX), metadataJson);
+      }
+      const insertSql = metadataJson !== null
+        ? `INSERT INTO OnboardingDocuments (EmployeeId, DocumentType, FileName, FilePath, FileSize, MimeType, MetadataJson)
+           VALUES (@employeeId, @documentType, @fileName, @filePath, @fileSize, @mimeType, @metadataJson)`
+        : `INSERT INTO OnboardingDocuments (EmployeeId, DocumentType, FileName, FilePath, FileSize, MimeType)
+           VALUES (@employeeId, @documentType, @fileName, @filePath, @fileSize, @mimeType)`;
+      await insertRequest.query(insertSql);
+    } else if (metadataJson !== null) {
+      await pool
+        .request()
+        .input('id', sql.Int, existingDocId)
+        .input('metadataJson', sql.NVarChar(sql.MAX), metadataJson)
+        .query(`
+          UPDATE OnboardingDocuments
+          SET MetadataJson = @metadataJson
+          WHERE Id = @id
+        `);
+    } else {
+      return res.status(400).json({ error: 'No changes to save' });
+    }
 
     // Update checklist if document type matches
     await pool
@@ -304,7 +445,7 @@ router.post('/:id/documents', upload.single('document'), async (req, res) => {
         WHERE EmployeeId = @employeeId AND ItemName = @itemName
       `);
 
-    res.status(201).json({ message: 'Document uploaded successfully' });
+    res.status(201).json({ message: req.file ? 'Document uploaded successfully' : 'Document details updated successfully' });
   } catch (error) {
     console.error('Error uploading document:', error);
     res.status(500).json({ error: 'Failed to upload document' });

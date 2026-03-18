@@ -131,6 +131,59 @@ async function ensureOnboardingDocumentTypesTable() {
   }
 }
 
+async function ensureOnboardingDocumentTypeFieldsTable() {
+  try {
+    const pool = await getPool();
+    const check = await pool.request().query(
+      "SELECT OBJECT_ID('OnboardingDocumentTypeFields', 'U') AS TableId"
+    );
+    if (check.recordset[0]?.TableId != null) {
+      await ensureOnboardingDocumentsMetadataColumn();
+      return;
+    }
+    await pool.request().query(`
+      CREATE TABLE OnboardingDocumentTypeFields (
+        Id INT IDENTITY(1,1) PRIMARY KEY,
+        DocumentTypeId INT NOT NULL,
+        FieldKey NVARCHAR(100) NOT NULL,
+        Label NVARCHAR(200) NOT NULL,
+        FieldType NVARCHAR(50) NOT NULL,
+        IsRequired BIT NOT NULL DEFAULT 0,
+        SortOrder INT NOT NULL DEFAULT 0,
+        CreatedAt DATETIME DEFAULT GETDATE(),
+        UpdatedAt DATETIME NULL,
+        CONSTRAINT FK_OnboardingDocumentTypeFields_DocumentType FOREIGN KEY (DocumentTypeId) REFERENCES OnboardingDocumentTypes(Id) ON DELETE CASCADE
+      );
+      CREATE INDEX IX_OnboardingDocumentTypeFields_DocumentTypeId ON OnboardingDocumentTypeFields(DocumentTypeId);
+    `);
+    console.log("OnboardingDocumentTypeFields table created");
+    await ensureOnboardingDocumentsMetadataColumn();
+  } catch (err) {
+    console.error("Failed to ensure OnboardingDocumentTypeFields table:", err.message);
+  }
+}
+
+async function ensureOnboardingDocumentsMetadataColumn() {
+  try {
+    const pool = await getPool();
+    const tableCheck = await pool.request().query(
+      "SELECT OBJECT_ID('OnboardingDocuments', 'U') AS TableId"
+    );
+    if (tableCheck.recordset[0]?.TableId == null) return;
+    const colCheck = await pool.request().query(`
+      SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_NAME = 'OnboardingDocuments' AND COLUMN_NAME = 'MetadataJson'
+    `);
+    if (colCheck.recordset.length > 0) return;
+    await pool.request().query(`
+      ALTER TABLE OnboardingDocuments ADD MetadataJson NVARCHAR(MAX) NULL
+    `);
+    console.log("OnboardingDocuments.MetadataJson column added");
+  } catch (err) {
+    console.error("Failed to ensure OnboardingDocuments MetadataJson column:", err.message);
+  }
+}
+
 async function ensureDepartmentsTable() {
   try {
     const pool = await getPool();
@@ -166,6 +219,7 @@ async function ensureDepartmentsTable() {
 ensureProspectsTable()
   .then(ensureOnboardingSettingsTable)
   .then(ensureOnboardingDocumentTypesTable)
+  .then(ensureOnboardingDocumentTypeFieldsTable)
   .then(ensureProspectTypesTable)
   .then(ensureDepartmentsTable)
   .then(ensureEmployeesColumns)
