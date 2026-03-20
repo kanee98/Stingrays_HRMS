@@ -41,6 +41,12 @@ docker compose -f docker-compose.db.yml -f docker-compose.yml up -d
 
 This starts both the database and the app. Using `docker compose build` without the DB file still only builds app images.
 
+For the reverse-proxy deployment in `PROXY.md`, keep these production assumptions aligned with the compose ports:
+
+- **`hrms.stingraysglobal.com`** should proxy to **`127.0.0.1:3002`** because `hrms-ui` publishes `3002:3000`.
+- **`portal-ui`** stays on **`127.0.0.1:3000`**.
+- **`AUTH_SERVICE_INTERNAL_URL`** for `hrms-ui` must stay on the Docker network URL **`http://auth-service:4000`** so server-side `/api/auth/*` requests do not fall back to `localhost` or the public auth hostname.
+
 ## If "Dockerfile not found" or build fails (DockerFile vs Dockerfile)
 
 On Windows, the file can be saved or tracked as **DockerFile** (capital F). Docker and Git expect **Dockerfile** (lowercase f). Fix it once:

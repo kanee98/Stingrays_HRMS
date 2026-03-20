@@ -3,6 +3,7 @@
 # Then: docker compose build && docker compose up
 
 services:
+  # Portal remains on host port 3000. Production HRMS subdomain should target hrms-ui on 3002.
   portal-ui:
     build:
       context: .
@@ -45,6 +46,7 @@ services:
         NEXT_PUBLIC_SUPER_ADMIN_API_URL: "${NEXT_PUBLIC_SUPER_ADMIN_API_URL:-http://${PUBLIC_HOST:-localhost}:4020}"
         NEXT_PUBLIC_DEFAULT_CLIENT_KEY: "${NEXT_PUBLIC_DEFAULT_CLIENT_KEY:-stingrays}"
     ports:
+      # Nginx for hrms.stingraysglobal.com should proxy to host port 3002.
       - "3002:3000"
     environment:
       NEXT_PUBLIC_AUTH_SERVICE_URL: "${NEXT_PUBLIC_AUTH_SERVICE_URL:-http://${PUBLIC_HOST:-localhost}:4001}"

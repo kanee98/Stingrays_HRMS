@@ -1,6 +1,14 @@
 import type { NextRequest } from 'next/server';
 
 const DEFAULT_AUTH_SERVICE_URL = 'http://localhost:4001';
+const AUTH_PROXY_ERROR_STATUS = 502;
+
+class AuthProxyConfigurationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'AuthProxyConfigurationError';
+  }
+}
 
 function getHeaderValue(value: string | null): string | null {
   if (!value) {
@@ -13,7 +21,33 @@ function getHeaderValue(value: string | null): string | null {
 }
 
 function getAuthServiceBaseUrl(): string {
-  return process.env.AUTH_SERVICE_INTERNAL_URL || process.env.NEXT_PUBLIC_AUTH_SERVICE_URL || DEFAULT_AUTH_SERVICE_URL;
+  const internalUrl = process.env.AUTH_SERVICE_INTERNAL_URL?.trim();
+  if (internalUrl) {
+    return internalUrl;
+  }
+
+  const publicUrl = process.env.NEXT_PUBLIC_AUTH_SERVICE_URL?.trim();
+  if (process.env.NODE_ENV !== 'production') {
+    return publicUrl || DEFAULT_AUTH_SERVICE_URL;
+  }
+
+  throw new AuthProxyConfigurationError(
+    'AUTH_SERVICE_INTERNAL_URL must be set for server-side auth requests in production.',
+  );
+}
+
+function getErrorDetails(error: unknown): string {
+  if (error instanceof Error) {
+    const cause =
+      error.cause instanceof Error
+        ? `${error.cause.name}: ${error.cause.message}`
+        : typeof error.cause === 'string'
+          ? error.cause
+          : null;
+    return cause ? `${error.name}: ${error.message} | cause=${cause}` : `${error.name}: ${error.message}`;
+  }
+
+  return String(error);
 }
 
 function getForwardedHost(request: NextRequest): string {
@@ -34,8 +68,10 @@ async function getRequestBody(request: NextRequest): Promise<BodyInit | undefine
 }
 
 export async function proxyAuthServiceRequest(request: NextRequest, upstreamPath: string): Promise<Response> {
+  let upstreamUrl: URL;
+
   try {
-    const upstreamUrl = new URL(upstreamPath, getAuthServiceBaseUrl());
+    upstreamUrl = new URL(upstreamPath, getAuthServiceBaseUrl());
     upstreamUrl.search = request.nextUrl.search;
 
     const headers = new Headers(request.headers);
@@ -81,7 +117,18 @@ export async function proxyAuthServiceRequest(request: NextRequest, upstreamPath
       statusText: upstreamResponse.statusText,
       headers: responseHeaders,
     });
-  } catch {
-    return Response.json({ message: 'Auth service unavailable' }, { status: 502 });
+  } catch (error) {
+    if (error instanceof AuthProxyConfigurationError) {
+      console.error('[hrms-ui] Auth proxy misconfigured:', error.message);
+      return Response.json({ message: 'Auth service is not configured' }, { status: 500 });
+    }
+
+    console.error('[hrms-ui] Auth proxy request failed:', {
+      upstreamPath,
+      upstreamUrl: upstreamUrl?.toString() ?? 'unresolved',
+      method: request.method,
+      error: getErrorDetails(error),
+    });
+    return Response.json({ message: 'Auth service unavailable' }, { status: AUTH_PROXY_ERROR_STATUS });
   }
 }
