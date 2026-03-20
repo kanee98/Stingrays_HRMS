@@ -2,7 +2,9 @@ import { getSharedCookieDomain } from './session';
 
 function appUrl(port: number): string {
   if (typeof window === 'undefined') {
-    return `http://localhost:${port}`;
+    // Server-side rendering for client components runs without `window`.
+    // Returning an empty string avoids silently generating localhost links.
+    return '';
   }
 
   return `${window.location.protocol}//${window.location.hostname}:${port}`;
@@ -10,7 +12,8 @@ function appUrl(port: number): string {
 
 function getServiceUrl(subdomain: string, port: number, envUrl?: string): string {
   if (typeof window === 'undefined') {
-    return envUrl || `http://localhost:${port}`;
+    // Avoid a localhost fallback during SSR; use the baked-in URL if provided.
+    return envUrl ?? '';
   }
 
   const baseDomain = getSharedCookieDomain(window.location.hostname);
@@ -105,7 +108,8 @@ export function buildLocalLoginUrl(nextPath?: string): string {
     return '/login';
   }
 
-  const loginUrl = new URL('/login', typeof window === 'undefined' ? 'http://localhost:3000' : window.location.origin);
-  loginUrl.searchParams.set('next', nextPath);
-  return `${loginUrl.pathname}${loginUrl.search}`;
+  // Build a server-safe relative login path.
+  const params = new URLSearchParams();
+  params.set('next', nextPath);
+  return `/login?${params.toString()}`;
 }

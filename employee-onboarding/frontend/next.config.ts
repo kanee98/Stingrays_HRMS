@@ -6,7 +6,13 @@ const apiTarget =
   process.env.EMPLOYEE_API_INTERNAL_URL ||
   process.env.NEXT_PUBLIC_API_URL ||
   process.env.NEXT_PUBLIC_EMPLOYEE_API_URL ||
-  "http://localhost:4000";
+  (process.env.NODE_ENV === 'production' ? undefined : "http://localhost:4000");
+
+if (!apiTarget && process.env.NODE_ENV === 'production') {
+  throw new Error(
+    'EMPLOYEE_API_INTERNAL_URL (or NEXT_PUBLIC_API_URL / NEXT_PUBLIC_EMPLOYEE_API_URL) is required in production.',
+  );
+}
 
 const nextConfig: NextConfig = {
   async rewrites() {

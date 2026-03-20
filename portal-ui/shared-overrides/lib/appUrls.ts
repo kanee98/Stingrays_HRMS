@@ -7,10 +7,8 @@ export function buildLocalChangePasswordUrl(nextPath?: string): string {
     return '/change-password';
   }
 
-  const changePasswordUrl = new URL(
-    '/change-password',
-    typeof window === 'undefined' ? 'http://localhost:3000' : window.location.origin,
-  );
-  changePasswordUrl.searchParams.set('next', nextPath);
-  return `${changePasswordUrl.pathname}${changePasswordUrl.search}`;
+  // Build a server-safe relative change-password path.
+  const params = new URLSearchParams();
+  params.set('next', nextPath);
+  return `/change-password?${params.toString()}`;
 }
