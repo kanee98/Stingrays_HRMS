@@ -1,7 +1,5 @@
 import type { NextRequest } from 'next/server';
 
-const DEFAULT_AUTH_SERVICE_URL = 'http://localhost:4001';
-
 function getHeaderValue(value: string | null): string | null {
   if (!value) {
     return null;
@@ -13,7 +11,11 @@ function getHeaderValue(value: string | null): string | null {
 }
 
 function getAuthServiceBaseUrl(): string {
-  return process.env.AUTH_SERVICE_INTERNAL_URL || process.env.NEXT_PUBLIC_AUTH_SERVICE_URL || DEFAULT_AUTH_SERVICE_URL;
+  const url = process.env.AUTH_SERVICE_INTERNAL_URL || process.env.NEXT_PUBLIC_AUTH_SERVICE_URL;
+  if (!url) {
+    throw new Error('AUTH service URL is not configured (set AUTH_SERVICE_INTERNAL_URL or NEXT_PUBLIC_AUTH_SERVICE_URL)');
+  }
+  return url;
 }
 
 function getForwardedHost(request: NextRequest): string {

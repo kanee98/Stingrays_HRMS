@@ -1,6 +1,5 @@
 import type { NextRequest } from 'next/server';
 
-const DEFAULT_SUPER_ADMIN_API_URL = 'http://localhost:4020';
 const HOP_BY_HOP_HEADERS = [
   'connection',
   'content-length',
@@ -26,7 +25,11 @@ function getHeaderValue(value: string | null): string | null {
 }
 
 function getSuperAdminApiBaseUrl(): string {
-  return process.env.SUPER_ADMIN_API_INTERNAL_URL || process.env.NEXT_PUBLIC_SUPER_ADMIN_API_URL || DEFAULT_SUPER_ADMIN_API_URL;
+  const url = process.env.SUPER_ADMIN_API_INTERNAL_URL || process.env.NEXT_PUBLIC_SUPER_ADMIN_API_URL;
+  if (!url) {
+    throw new Error('SUPER_ADMIN_API URL is not configured (set SUPER_ADMIN_API_INTERNAL_URL or NEXT_PUBLIC_SUPER_ADMIN_API_URL)');
+  }
+  return url;
 }
 
 function getForwardedHost(request: NextRequest): string {

@@ -2,7 +2,9 @@ import { getSharedCookieDomain } from '../lib/session';
 
 function appUrl(port: number): string {
   if (typeof window === 'undefined') {
-    return `http://localhost:${port}`;
+    // Server-side rendering for client components runs without `window`.
+    // Returning an empty string avoids silently generating localhost links.
+    return '';
   }
 
   return `${window.location.protocol}//${window.location.hostname}:${port}`;
@@ -10,7 +12,9 @@ function appUrl(port: number): string {
 
 function getServiceUrl(subdomain: string, port: number, envUrl?: string): string {
   if (typeof window === 'undefined') {
-    return envUrl || `http://localhost:${port}`;
+    // Avoid a localhost fallback during SSR; use the baked-in URL if provided.
+    // If envUrl isn't set, callers will see an empty/invalid URL rather than localhost.
+    return envUrl ?? '';
   }
 
   const baseDomain = getSharedCookieDomain(window.location.hostname);

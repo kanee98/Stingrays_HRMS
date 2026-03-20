@@ -1,15 +1,5 @@
 import type { NextRequest } from 'next/server';
 
-const DEFAULT_AUTH_SERVICE_URL = 'http://localhost:4001';
-const AUTH_PROXY_ERROR_STATUS = 502;
-
-class AuthProxyConfigurationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'AuthProxyConfigurationError';
-  }
-}
-
 function getHeaderValue(value: string | null): string | null {
   if (!value) {
     return null;
@@ -21,33 +11,11 @@ function getHeaderValue(value: string | null): string | null {
 }
 
 function getAuthServiceBaseUrl(): string {
-  const internalUrl = process.env.AUTH_SERVICE_INTERNAL_URL?.trim();
-  if (internalUrl) {
-    return internalUrl;
+  const url = process.env.AUTH_SERVICE_INTERNAL_URL || process.env.NEXT_PUBLIC_AUTH_SERVICE_URL;
+  if (!url) {
+    throw new Error('AUTH service URL is not configured (set AUTH_SERVICE_INTERNAL_URL or NEXT_PUBLIC_AUTH_SERVICE_URL)');
   }
-
-  const publicUrl = process.env.NEXT_PUBLIC_AUTH_SERVICE_URL?.trim();
-  if (process.env.NODE_ENV !== 'production') {
-    return publicUrl || DEFAULT_AUTH_SERVICE_URL;
-  }
-
-  throw new AuthProxyConfigurationError(
-    'AUTH_SERVICE_INTERNAL_URL must be set for server-side auth requests in production.',
-  );
-}
-
-function getErrorDetails(error: unknown): string {
-  if (error instanceof Error) {
-    const cause =
-      error.cause instanceof Error
-        ? `${error.cause.name}: ${error.cause.message}`
-        : typeof error.cause === 'string'
-          ? error.cause
-          : null;
-    return cause ? `${error.name}: ${error.message} | cause=${cause}` : `${error.name}: ${error.message}`;
-  }
-
-  return String(error);
+  return url;
 }
 
 function getForwardedHost(request: NextRequest): string {
