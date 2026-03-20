@@ -1,5 +1,22 @@
 import type { NextRequest } from 'next/server';
 
+const AUTH_PROXY_ERROR_STATUS = 502;
+
+class AuthProxyConfigurationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'AuthProxyConfigurationError';
+  }
+}
+
+function getErrorDetails(error: unknown): string {
+  if (error instanceof Error) {
+    return error.stack || `${error.name}: ${error.message}`;
+  }
+
+  return String(error);
+}
+
 function getHeaderValue(value: string | null): string | null {
   if (!value) {
     return null;
@@ -13,7 +30,9 @@ function getHeaderValue(value: string | null): string | null {
 function getAuthServiceBaseUrl(): string {
   const url = process.env.AUTH_SERVICE_INTERNAL_URL || process.env.NEXT_PUBLIC_AUTH_SERVICE_URL;
   if (!url) {
-    throw new Error('AUTH service URL is not configured (set AUTH_SERVICE_INTERNAL_URL or NEXT_PUBLIC_AUTH_SERVICE_URL)');
+    throw new AuthProxyConfigurationError(
+      'AUTH service URL is not configured (set AUTH_SERVICE_INTERNAL_URL or NEXT_PUBLIC_AUTH_SERVICE_URL)',
+    );
   }
   return url;
 }
@@ -36,7 +55,7 @@ async function getRequestBody(request: NextRequest): Promise<BodyInit | undefine
 }
 
 export async function proxyAuthServiceRequest(request: NextRequest, upstreamPath: string): Promise<Response> {
-  let upstreamUrl: URL;
+  let upstreamUrl: URL | null = null;
 
   try {
     upstreamUrl = new URL(upstreamPath, getAuthServiceBaseUrl());
