@@ -36,8 +36,10 @@ async function getRequestBody(request: NextRequest): Promise<BodyInit | undefine
 }
 
 export async function proxyAuthServiceRequest(request: NextRequest, upstreamPath: string): Promise<Response> {
+  let upstreamUrl: URL;
+
   try {
-    const upstreamUrl = new URL(upstreamPath, getAuthServiceBaseUrl());
+    upstreamUrl = new URL(upstreamPath, getAuthServiceBaseUrl());
     upstreamUrl.search = request.nextUrl.search;
 
     const headers = new Headers(request.headers);
@@ -83,7 +85,18 @@ export async function proxyAuthServiceRequest(request: NextRequest, upstreamPath
       statusText: upstreamResponse.statusText,
       headers: responseHeaders,
     });
-  } catch {
-    return Response.json({ message: 'Auth service unavailable' }, { status: 502 });
+  } catch (error) {
+    if (error instanceof AuthProxyConfigurationError) {
+      console.error('[hrms-ui] Auth proxy misconfigured:', error.message);
+      return Response.json({ message: 'Auth service is not configured' }, { status: 500 });
+    }
+
+    console.error('[hrms-ui] Auth proxy request failed:', {
+      upstreamPath,
+      upstreamUrl: upstreamUrl?.toString() ?? 'unresolved',
+      method: request.method,
+      error: getErrorDetails(error),
+    });
+    return Response.json({ message: 'Auth service unavailable' }, { status: AUTH_PROXY_ERROR_STATUS });
   }
 }

@@ -2,6 +2,8 @@
 
 This guide configures **Nginx** as a reverse proxy so you can access the app via **subdomains**. The main app is at **https://hrms.stingraysglobal.com**; login and other services use the subdomains below. Only **80, 443, and 22** need to be open; app ports stay bound to localhost.
 
+`hrms.stingraysglobal.com` should target the `hrms-ui` service on host port `3002`. Host port `3000` is reserved for `portal-ui`.
+
 **Domain used:** `stingraysglobal.com` (config and steps below use this; change if you use a different domain.)
 
 ---
@@ -10,7 +12,7 @@ This guide configures **Nginx** as a reverse proxy so you can access the app via
 
 | Subdomain            | Service      | Proxies to   |
 |----------------------|-------------|--------------|
-| **hrms.stingraysglobal.com** | HRMS UI     | localhost:3000 |
+| **hrms.stingraysglobal.com** | HRMS UI     | localhost:3002 |
 | payroll.stingraysglobal.com | Payroll UI  | localhost:3010 |
 | employee.stingraysglobal.com | Employee UI | localhost:3001 |
 | auth.stingraysglobal.com   | Auth API    | localhost:4001 |
@@ -149,6 +151,7 @@ nano .env
 
 ```env
 # Subdomain URLs (HTTPS) — stingraysglobal.com
+AUTH_SERVICE_INTERNAL_URL=http://auth-service:4000
 NEXT_PUBLIC_AUTH_SERVICE_URL=https://auth.stingraysglobal.com
 NEXT_PUBLIC_HRMS_URL=https://hrms.stingraysglobal.com
 NEXT_PUBLIC_EMPLOYEE_UI_URL=https://employee.stingraysglobal.com
@@ -158,6 +161,8 @@ NEXT_PUBLIC_PAYROLL_API_URL=https://payroll-api.stingraysglobal.com
 ```
 
 Save and exit.
+
+`AUTH_SERVICE_INTERNAL_URL` is used by `hrms-ui` for server-side `/api/auth/*` proxying. Keep it on the internal Docker URL `http://auth-service:4000`; `NEXT_PUBLIC_AUTH_SERVICE_URL` is the browser-facing HTTPS endpoint.
 
 Rebuild the frontends and restart so the new URLs are baked in:
 
@@ -177,6 +182,7 @@ On the server:
 ```bash
 # Remove rules for app ports (adjust if your ufw rules differ)
 sudo ufw delete allow 3000
+sudo ufw delete allow 3002
 sudo ufw delete allow 3001
 sudo ufw delete allow 3010
 sudo ufw delete allow 4000
@@ -194,7 +200,7 @@ sudo ufw status
 sudo ufw reload
 ```
 
-**Expected:** Only 22, 80, 443 (and their v6 entries) show as ALLOW. Ports 3000, 3001, 3010, 4000, 4001, 4010 should no longer be listed.
+**Expected:** Only 22, 80, 443 (and their v6 entries) show as ALLOW. Ports 3000, 3002, 3001, 3010, 4000, 4001, 4010 should no longer be listed.
 
 ---
 
@@ -205,23 +211,28 @@ sudo ufw reload
 | 22    | SSH               | Open             | **Keep open**      |
 | 80    | HTTP (Nginx)      | Open             | **Keep open**      |
 | 443   | HTTPS (Nginx)     | Open             | **Keep open**      |
-| 3000  | HRMS UI           | Open             | **Close** (Nginx → localhost) |
+| 3000  | Portal UI         | Open             | **Close** (Nginx or local-only access) |
+| 3002  | HRMS UI           | Open             | **Close** (Nginx → localhost) |
 | 3001  | Employee UI       | Open             | **Close**          |
 | 3010  | Payroll UI        | Open             | **Close**          |
 | 4000  | Employee API      | Open             | **Close**          |
 | 4001  | Auth API          | Open             | **Close**          |
 | 4010  | Payroll API       | Open             | **Close**          |
 
-Containers still bind to 3000, 3001, etc. on the host; only the firewall stops the internet from reaching them. Nginx (on 80/443) forwards to `127.0.0.1:3000` etc.
+Containers still bind to 3000, 3002, 3001, etc. on the host; only the firewall stops the internet from reaching them. Nginx (on 80/443) forwards to `127.0.0.1:3002` for HRMS, `127.0.0.1:3001` for Employee, `127.0.0.1:3010` for Payroll, and `127.0.0.1:4001` for Auth.
 
 ---
 
 ## Troubleshooting
 
 - **502 Bad Gateway**  
-  Nginx can’t reach the app. Check that the stack is up:  
+  If you get the default Nginx/HTML 502 page, Nginx can’t reach the app. Check that the stack is up:  
   `docker compose ps`  
-  and that the port in the Nginx config matches (e.g. `proxy_pass http://127.0.0.1:3000;` for hrms).
+  and that the HRMS vhost points to `proxy_pass http://127.0.0.1:3002;`.
+
+- **`{"message":"Auth service unavailable"}` from `/api/auth/session`**  
+  `hrms-ui` is running, but its server-side proxy cannot reach the auth API. Confirm `AUTH_SERVICE_INTERNAL_URL=http://auth-service:4000` is present in the running `hrms-ui` container, then rebuild and restart:  
+  `docker compose build --no-cache hrms-ui && docker compose up -d hrms-ui auth-service`
 
 - **SSL certificate errors**  
   Run again:  
@@ -235,7 +246,7 @@ Containers still bind to 3000, 3001, etc. on the host; only the firewall stops t
 
 - **Can’t access by subdomain**  
   Confirm DNS: `dig +short hrms.stingraysglobal.com` → your server IP.  
-  Confirm Nginx: `sudo nginx -t` and `curl -I http://127.0.0.1:3000` from the server.
+  Confirm Nginx: `sudo nginx -t` and `curl -I http://127.0.0.1:3002` from the server.
 
 ---
 
