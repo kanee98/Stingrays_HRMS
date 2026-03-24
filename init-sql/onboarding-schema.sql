@@ -1,4 +1,4 @@
-USE StingraysHRMS;
+USE [$(DB_NAME)];
 GO
 
 -- Add additional columns to Employees table

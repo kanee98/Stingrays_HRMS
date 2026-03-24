@@ -1,18 +1,19 @@
 -- StingraysHRMS: Roles/UserRoles define app access (admin, hr, employee). Use for future RBAC on API routes.
 -- Create database if it doesn't exist
-IF NOT EXISTS(SELECT * FROM sys.databases WHERE name = 'StingraysHRMS')
+IF DB_ID(N'$(DB_NAME)') IS NULL
 BEGIN
-    CREATE DATABASE StingraysHRMS;
-    PRINT 'Database StingraysHRMS created';
+    DECLARE @CreateDatabaseSql NVARCHAR(MAX) = N'CREATE DATABASE ' + QUOTENAME(N'$(DB_NAME)');
+    EXEC (@CreateDatabaseSql);
+    PRINT 'Database $(DB_NAME) created';
 END
 ELSE
 BEGIN
-    PRINT 'Database StingraysHRMS already exists';
+    PRINT 'Database $(DB_NAME) already exists';
 END
 GO
 
 -- Switch to the database
-USE StingraysHRMS;
+USE [$(DB_NAME)];
 GO
 
 -- Create Roles table first
@@ -152,19 +153,5 @@ GO
 IF NOT EXISTS(SELECT * FROM Roles WHERE Name = 'hr')
 BEGIN
     INSERT INTO Roles (Name) VALUES ('hr');
-END
-GO
-
--- Insert admin user if not exists
-IF NOT EXISTS(SELECT * FROM Users WHERE Email = 'admin@stingrays.com')
-BEGIN
-    DECLARE @AdminUserId INT;
-    INSERT INTO Users (Email, FullName, PasswordHash, IsActive, MustChangePassword, PasswordChangedAt, UpdatedAt)
-    VALUES ('admin@stingrays.com', 'Platform Administrator', '$2a$12$e/6/XT8z856NKg7xB2QS9OBXXAzspRyOTh9SrKJhlBw0GicIREc22', 1, 0, SYSUTCDATETIME(), SYSUTCDATETIME());
-    SET @AdminUserId = SCOPE_IDENTITY();
-    
-    -- Assign admin role
-    INSERT INTO UserRoles (UserId, RoleId)
-    SELECT @AdminUserId, Id FROM Roles WHERE Name = 'admin';
 END
 GO

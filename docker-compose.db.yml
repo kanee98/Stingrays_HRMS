@@ -1,45 +1,61 @@
-# Database stack - run separately so it is not rebuilt with `docker compose build`.
-# Start once: docker compose -f docker-compose.db.yml up -d
-# Then build/run app: docker compose build && docker compose up
-
 services:
   mssql:
     image: mcr.microsoft.com/mssql/server:2022-latest
-    container_name: stingrays-mssql
+    env_file:
+      - path: .env
+        required: false
     environment:
-      ACCEPT_EULA: "Y"
-      SA_PASSWORD: "Kanishka#9810"
+      ACCEPT_EULA: Y
+      MSSQL_PID: ${MSSQL_PID:-Developer}
+      MSSQL_SA_PASSWORD: ${DB_PASSWORD:-Kanishka#9810}
     ports:
-      - "1433:1433"
+      - "127.0.0.1:${MSSQL_PORT:-1433}:1433"
     volumes:
       - mssql_data:/var/opt/mssql
-    networks:
-      - hrms-db
     healthcheck:
-      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Kanishka#9810' -C -Q 'SELECT 1' || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "bash -c '</dev/tcp/127.0.0.1/1433' >/dev/null 2>&1 || exit 1",
+        ]
       interval: 10s
       timeout: 5s
-      retries: 10
-      start_period: 120s
-
-  mssql-init:
-    image: mcr.microsoft.com/mssql/server:2022-latest
-    container_name: stingrays-mssql-init
-    environment:
-      SA_PASSWORD: "Kanishka#9810"
-    volumes:
-      - ./init-sql:/scripts
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
     networks:
-      - hrms-db
+      - stingrays
+
+  db-init:
+    build:
+      context: .
+      dockerfile: docker/db-init/Dockerfile
+    env_file:
+      - path: .env
+        required: false
     depends_on:
       mssql:
         condition: service_healthy
-    command: /bin/bash /scripts/init-db.sh
-    user: root
+    environment:
+      DB_HOST: mssql
+      DB_PORT: 1433
+      DB_NAME: ${DB_NAME:-StingraysHRMS}
+      DB_USER: sa
+      DB_PASSWORD: ${DB_PASSWORD:-Kanishka#9810}
+      AUTH_SEED_EMAIL: ${AUTH_SEED_EMAIL:-admin@stingrays.com}
+      AUTH_SEED_PASSWORD: ${AUTH_SEED_PASSWORD:-Admin@123}
+      AUTH_SEED_NAME: ${AUTH_SEED_NAME:-Platform Administrator}
+      SUPER_ADMIN_SEED_EMAIL: ${SUPER_ADMIN_SEED_EMAIL:-superadmin@fusionlabz.lk}
+      SUPER_ADMIN_SEED_PASSWORD: ${SUPER_ADMIN_SEED_PASSWORD:-SuperAdmin@123}
+      SUPER_ADMIN_SEED_NAME: ${SUPER_ADMIN_SEED_NAME:-FusionLabz Platform Super Admin}
+    restart: "no"
+    networks:
+      - stingrays
 
 volumes:
   mssql_data:
+    name: stingrays_hrms_mssql_data
 
 networks:
-  hrms-db:
-    name: stingrays-hrms-db
+  stingrays:
+    name: stingrays_hrms_network

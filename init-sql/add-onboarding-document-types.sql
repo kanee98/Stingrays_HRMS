@@ -1,5 +1,5 @@
 -- OnboardingDocumentTypes: configurable document list for onboarding (no CompanyId for now)
-USE StingraysHRMS;
+USE [$(DB_NAME)];
 GO
 
 IF OBJECT_ID('OnboardingDocumentTypes', 'U') IS NULL

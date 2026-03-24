@@ -1,4 +1,4 @@
-USE StingraysHRMS;
+USE [$(DB_NAME)];
 GO
 
 -- Create Prospects table if missing (e.g. DB was initialized before this table was added)

@@ -1,42 +1,107 @@
 #!/bin/bash
+set -euo pipefail
+
+DB_HOST="${DB_HOST:-mssql}"
+DB_PORT="${DB_PORT:-1433}"
+DB_NAME="${DB_NAME:-StingraysHRMS}"
+DB_USER="${DB_USER:-sa}"
+DB_PASSWORD="${DB_PASSWORD:-Kanishka#9810}"
+SCRIPT_DIR="${SCRIPT_DIR:-/scripts}"
+AUTH_SEED_EMAIL="${AUTH_SEED_EMAIL:-admin@stingrays.com}"
+AUTH_SEED_PASSWORD="${AUTH_SEED_PASSWORD:-Admin@123}"
+AUTH_SEED_NAME="${AUTH_SEED_NAME:-Platform Administrator}"
+SUPER_ADMIN_SEED_EMAIL="${SUPER_ADMIN_SEED_EMAIL:-superadmin@fusionlabz.lk}"
+SUPER_ADMIN_SEED_PASSWORD="${SUPER_ADMIN_SEED_PASSWORD:-SuperAdmin@123}"
+SUPER_ADMIN_SEED_NAME="${SUPER_ADMIN_SEED_NAME:-FusionLabz Platform Super Admin}"
+
+SQLCMD="/opt/mssql-tools18/bin/sqlcmd"
+if [ ! -x "$SQLCMD" ]; then
+    SQLCMD="/opt/mssql-tools/bin/sqlcmd"
+fi
+
+if [ ! -x "$SQLCMD" ]; then
+    echo "ERROR: sqlcmd was not found in the container image"
+    exit 1
+fi
+
+if ! command -v htpasswd >/dev/null 2>&1; then
+    echo "ERROR: htpasswd was not found in the container image"
+    exit 1
+fi
+
+sql_escape() {
+    printf "%s" "$1" | sed "s/'/''/g"
+}
+
+bcrypt_hash() {
+    local hash
+    hash="$(htpasswd -bnBC 12 seed "$1" | tr -d '\r\n' | cut -d: -f2-)"
+    printf '%s' "${hash/#\$2y\$/\$2b\$}"
+}
+
+AUTH_SEED_PASSWORD_HASH="$(bcrypt_hash "$AUTH_SEED_PASSWORD")"
+SUPER_ADMIN_SEED_PASSWORD_HASH="$(bcrypt_hash "$SUPER_ADMIN_SEED_PASSWORD")"
+
+scripts=(
+    "init.sql"
+    "onboarding-schema.sql"
+    "payroll-schema.sql"
+    "super-admin-schema.sql"
+    "add-prospects-table.sql"
+    "add-onboarding-settings.sql"
+    "add-onboarding-document-types.sql"
+    "seed.sql"
+)
 
 echo "=== Starting database initialization ==="
-echo "Waiting for SQL Server to be ready..."
+echo "Waiting for SQL Server at ${DB_HOST}:${DB_PORT}..."
 
-# Wait for SQL Server to be ready
-for i in {1..60}; do
-    if /opt/mssql-tools18/bin/sqlcmd -S mssql -U sa -P 'Kanishka#9810' -Q 'SELECT 1' -C > /dev/null 2>&1; then
-        echo "SQL Server is ready!"
+sqlcmd_common=(
+    "$SQLCMD"
+    -S "${DB_HOST},${DB_PORT}"
+    -U "$DB_USER"
+    -P "$DB_PASSWORD"
+    -C
+)
+
+sqlcmd_vars=(
+    -v
+    "DB_NAME=${DB_NAME}"
+    "AUTH_SEED_EMAIL=$(sql_escape "$AUTH_SEED_EMAIL")"
+    "AUTH_SEED_NAME=$(sql_escape "$AUTH_SEED_NAME")"
+    "AUTH_SEED_PASSWORD_HASH=${AUTH_SEED_PASSWORD_HASH}"
+    "SUPER_ADMIN_SEED_EMAIL=$(sql_escape "$SUPER_ADMIN_SEED_EMAIL")"
+    "SUPER_ADMIN_SEED_NAME=$(sql_escape "$SUPER_ADMIN_SEED_NAME")"
+    "SUPER_ADMIN_SEED_PASSWORD_HASH=${SUPER_ADMIN_SEED_PASSWORD_HASH}"
+)
+
+for i in $(seq 1 60); do
+    if "${sqlcmd_common[@]}" -Q "SELECT 1" >/dev/null 2>&1; then
+        echo "SQL Server is ready"
         break
     fi
-    if [ $i -eq 60 ]; then
+
+    if [ "$i" -eq 60 ]; then
         echo "ERROR: Failed to connect to SQL Server after 120 seconds"
         exit 1
     fi
-    echo "Waiting for SQL Server... ($i/60)"
+
+    echo "Waiting for SQL Server... (${i}/60)"
     sleep 2
 done
 
-echo "Running initialization script..."
-/opt/mssql-tools18/bin/sqlcmd -S mssql -U sa -P 'Kanishka#9810' -i /scripts/init.sql -C -l 30
+for script_name in "${scripts[@]}"; do
+    script_path="${SCRIPT_DIR}/${script_name}"
 
-echo "Running onboarding schema script..."
-/opt/mssql-tools18/bin/sqlcmd -S mssql -U sa -P 'Kanishka#9810' -i /scripts/onboarding-schema.sql -C -l 30
+    if [ ! -f "$script_path" ]; then
+        echo "Skipping missing script: ${script_name}"
+        continue
+    fi
 
-echo "Running payroll schema script..."
-/opt/mssql-tools18/bin/sqlcmd -S mssql -U sa -P 'Kanishka#9810' -i /scripts/payroll-schema.sql -C -l 30
+    echo "Running ${script_name}..."
+    "${sqlcmd_common[@]}" "${sqlcmd_vars[@]}" -i "$script_path" -b -l 30
+done
 
-echo "Running super admin schema script..."
-/opt/mssql-tools18/bin/sqlcmd -S mssql -U sa -P 'Kanishka#9810' -i /scripts/super-admin-schema.sql -C -l 30
-
-EXIT_CODE=$?
-if [ $EXIT_CODE -eq 0 ]; then
-    echo "=== Initialization complete! ==="
-    # Verify database was created
-    echo "Verifying database creation..."
-    /opt/mssql-tools18/bin/sqlcmd -S mssql -U sa -P 'Kanishka#9810' -Q "SELECT name FROM sys.databases WHERE name = 'StingraysHRMS'" -C
-    exit 0
-else
-    echo "ERROR: Initialization script failed with exit code $EXIT_CODE"
-    exit 1
-fi
+echo "=== Initialization complete ==="
+echo "Verifying database creation..."
+"${sqlcmd_common[@]}" -Q "SET NOCOUNT ON; SELECT name FROM sys.databases WHERE name = N'${DB_NAME}'"

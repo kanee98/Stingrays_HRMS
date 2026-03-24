@@ -1,4 +1,4 @@
-USE StingraysHRMS;
+USE [$(DB_NAME)];
 GO
 
 IF OBJECT_ID('Clients', 'U') IS NULL
@@ -97,6 +97,26 @@ BEGIN
         CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
         UpdatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
     );
+END
+GO
+
+IF OBJECT_ID('SuperAdminSessions', 'U') IS NULL
+BEGIN
+    CREATE TABLE SuperAdminSessions (
+        SessionId UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
+        AdminId INT NOT NULL,
+        CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        LastSeenAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+        ExpiresAt DATETIME2 NOT NULL,
+        RevokedAt DATETIME2 NULL,
+        RevokedReason NVARCHAR(100) NULL,
+        UserAgent NVARCHAR(512) NULL,
+        IpAddress NVARCHAR(64) NULL,
+        CONSTRAINT FK_SuperAdminSessions_SuperAdminUsers FOREIGN KEY (AdminId) REFERENCES SuperAdminUsers(Id) ON DELETE CASCADE
+    );
+
+    CREATE INDEX IX_SuperAdminSessions_AdminId_RevokedAt_ExpiresAt
+    ON SuperAdminSessions (AdminId, RevokedAt, ExpiresAt);
 END
 GO
 

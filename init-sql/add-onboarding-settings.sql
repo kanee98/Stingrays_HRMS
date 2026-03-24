@@ -1,5 +1,5 @@
 -- OnboardingSettings: optional steps (Gramasevaka, Police Report) - single row config
-USE StingraysHRMS;
+USE [$(DB_NAME)];
 GO
 
 IF OBJECT_ID('OnboardingSettings', 'U') IS NULL
